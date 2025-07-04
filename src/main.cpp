@@ -5,6 +5,7 @@
 #include "BlockMesh.h"
 #include <array>
 #include <filesystem>
+#include "TextureLoader.h"
 
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
@@ -24,27 +25,30 @@ void drawFPS() {
 
 void runGame() {
     MyCamera camera({0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, 90.0f, CAMERA_PERSPECTIVE);
+
+    TextureLoader::loadTextures();
     std::vector<std::unique_ptr<BlockMesh>> chunks;
-    for (int i = 0; i < 5; i++) {
-        for (int k = 0; k < 5; k++) {
+    for (int i = 0; i < 3; i++) {
+        for (int k = 0; k < 3; k++) {
             chunks.push_back(std::make_unique<BlockMesh>(Vector3{16.0f*i, 0.0f, 16.0f*k}));
         }
     }
-    // BlockMesh chunk;
-    // BlockMesh chunk2({16, 0, 0});
+
     double time = GetTime();
     double dt;
     int moved = 0;
     ToggleFullscreen();
+    DisableCursor();
+
     while (!WindowShouldClose()) {
 
         dt = GetTime() - time;
         time = GetTime();
-        std::cout << "DT: " << dt << std::endl;
+        // std::cout << "DT: " << dt << std::endl;
         // SetWindowFocused();
 
         Vector2 dXY = GetMouseDelta();
-        std::cout << dXY.x << ", " << dXY.y << std::endl;
+        // std::cout << dXY.x << ", " << dXY.y << std::endl;
         moved += 1;
         SetMousePosition(SCWIDTH/2, SCHEIGHT/2);
         camera.changeYaw(dXY.x * camera.rotateSpeed);
@@ -83,6 +87,8 @@ void runGame() {
         drawFPS();
 		EndDrawing();
     }
+
+    TextureLoader::unloadTextures();
  
 }
 
@@ -90,7 +96,6 @@ int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
     std::filesystem::current_path("../");
 	
-    DisableCursor();
     SetWindowFocused();
 
     // Loading Screen

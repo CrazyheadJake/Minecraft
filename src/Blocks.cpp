@@ -1,4 +1,13 @@
 #include "Blocks.h"
+#include "raymath.h"
+#include <unordered_map>
+
+const std::unordered_map<std::string, Block> Blocks::s_stringToBlock = {
+    {"air", Block::AIR},
+    {"dirt", Block::DIRT},
+    {"grass", Block::GRASS},
+    {"stone", Block::STONE}
+};
 
 std::vector<Vector3> const Blocks::CUBE_VERTICES = {
     {-0.500f, -0.500f, 0.500f},
@@ -106,7 +115,6 @@ const std::vector<Vector3>& Blocks::getVertices(Block block)
         default:
             return CUBE_VERTICES;
     }
-    return {};
 }
 
 const std::vector<unsigned short>& Blocks::getIndices(Block block)
@@ -119,7 +127,6 @@ const std::vector<unsigned short>& Blocks::getIndices(Block block)
         default:
             return CUBE_INDICES;
     }
-    return {};
 }
 
 const std::vector<Vector2>& Blocks::getTexcoords(Block block)
@@ -132,7 +139,6 @@ const std::vector<Vector2>& Blocks::getTexcoords(Block block)
         default:
             return CUBE_TEXCOORDS;
     }
-    return {};
 }
 
 const std::vector<Vector3>& Blocks::getNormals(Block block)
@@ -145,5 +151,28 @@ const std::vector<Vector3>& Blocks::getNormals(Block block)
         default:
             return CUBE_NORMALS;
     }
-    return {};
+}
+
+Direction Blocks::getDirection(Vector3 normal)
+{
+    if (Vector3Equals(normal, {1, 0, 0}))
+        return Direction::NORTH;
+    if (Vector3Equals(normal, {-1, 0, 0}))
+        return Direction::SOUTH;
+    if (Vector3Equals(normal, {0, 1, 0}))
+        return Direction::UP;
+    if (Vector3Equals(normal, {0, -1, 0}))
+        return Direction::DOWN;
+    if (Vector3Equals(normal, {0, 0, 1}))
+        return Direction::EAST;
+    if (Vector3Equals(normal, {0, 0, -1}))
+        return Direction::WEST;
+    return Direction::NORTH;
+}
+
+const Block Blocks::getBlock(const std::string &name)
+{
+    if (s_stringToBlock.contains(name))
+        return s_stringToBlock.at(name);
+    return Block::UNKNOWN;
 }

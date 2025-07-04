@@ -10,7 +10,7 @@ struct MyCamera {
     float fovy;
     int perspective;
 
-    float speed = 5.0f;
+    float speed = 8.0f;
     float rotateSpeed = 0.07f; 
     float pitch = 0;
     float yaw = 0;

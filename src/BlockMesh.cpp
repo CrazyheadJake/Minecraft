@@ -7,14 +7,11 @@
 #include <climits>
 #include <span>
 #include <algorithm>
+#include "TextureLoader.h"
 
 BlockMesh::BlockMesh(Vector3 offset) : m_chunkOffset(offset)
 {
-    m_image = LoadImage("assets/textures/blocks/dirt.png");
-    m_texture = LoadTextureFromImage(m_image);
-    for (int i = 0; i < LENGTH*WIDTH*HEIGHT; i++) {
-        m_blocks[i] = Block::GRASS;
-    }
+    generateWorld();
 
     generateMeshes();
     generateModel();
@@ -23,8 +20,12 @@ BlockMesh::BlockMesh(Vector3 offset) : m_chunkOffset(offset)
 
 BlockMesh::~BlockMesh()
 {
-    UnloadModel(m_model);
-    UnloadImage(m_image);
+    for (auto& mesh: m_meshes) {
+        UnloadMesh(mesh);
+    }
+    free(m_model.meshes);
+    free(m_model.materials);
+    free(m_model.meshMaterial);
 }
 
 void BlockMesh::drawMesh() const
@@ -64,7 +65,10 @@ void BlockMesh::generateMeshes()
         for (Vector3 vert : blockVertices) {
             vertices.push_back(Vector3Add(vert, offset));
         }
-        texcoords.insert(texcoords.end(), blockTexcoords.begin(), blockTexcoords.end());
+        for (int tex = 0; tex < blockTexcoords.size(); tex++) {
+            Direction d = Blocks::getDirection(blockNormals[tex]);
+            texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[tex]));
+        }
         normals.insert(normals.end(), blockNormals.begin(), blockNormals.end());
     }
     if (vertices.size() > 0) {
@@ -72,15 +76,42 @@ void BlockMesh::generateMeshes()
     }
 }
 
+void BlockMesh::generateWorld()
+{
+    for (int y  = 0; y < HEIGHT; y++) {
+        for (int z = 0; z < WIDTH; z++) {
+            for (int x = 0; x < LENGTH; x++) {
+                setBlock(x,y,z,Block::DIRT);
+                if (y > 20) {
+                    setBlock(x, y, z, Block::AIR);
+                }
+                else if (y == 20) {
+                    setBlock(x, y, z, Block::GRASS);
+                }
+                else if (y > 15) {
+                    setBlock(x, y, z, Block::DIRT);
+                }
+                else
+                    setBlock(x, y, z, Block::STONE);
+            }
+        }
+    }
+}
+
 void BlockMesh::updateMesh()
 {
 }
 
-Vector3 BlockMesh::getGlobalCoord(int i)
+Vector3 BlockMesh::getGlobalCoord(int i)        // Not sure if the math in this works if length != width
 {
     return Vector3Add({(float)(i % LENGTH),
         (float)((i / LENGTH / WIDTH) % HEIGHT), 
         (float)((i / LENGTH) % WIDTH)}, m_chunkOffset);
+}
+
+void BlockMesh::setBlock(int x, int y, int z, Block block)
+{
+    m_blocks[z * LENGTH + y * LENGTH * WIDTH + x] = block;
 }
 
 void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
@@ -125,10 +156,10 @@ void BlockMesh::generateModel()
     
     m_model.materialCount = 1;
     m_model.materials = (Material*)malloc(sizeof(Material));
-    m_model.materials[0] = LoadMaterialDefault();
+    // m_model.materials[0] = LoadMaterialDefault();
     m_model.meshMaterial = (int*)malloc(sizeof(int));
     m_model.meshMaterial[0] = 0;
 
     // I'm afraid of memory leaks here (maybe GPU), but address sanitizer seems to think there are none
-    m_model.materials[0].maps[MATERIAL_MAP_ALBEDO].texture = m_texture;
+    m_model.materials[0] = TextureLoader::s_material;
 }

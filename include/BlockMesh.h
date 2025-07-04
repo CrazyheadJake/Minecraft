@@ -12,8 +12,10 @@ class BlockMesh {
         ~BlockMesh();
         void drawMesh() const;
         void generateMeshes();
+        void generateWorld();
         void updateMesh();
         Vector3 getGlobalCoord(int i);
+        void setBlock(int x, int y, int z, Block block);
 
     private:
         static constexpr int LENGTH = 16;
@@ -24,9 +26,6 @@ class BlockMesh {
         std::array<Block, LENGTH*WIDTH*HEIGHT> m_blocks;
         Model m_model = {0};
         std::vector<Mesh> m_meshes;
-
-        Image m_image;
-        Texture m_texture;
 
         Vector3 m_chunkOffset;
 

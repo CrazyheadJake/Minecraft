@@ -1,4 +1,5 @@
 {
     "default": "blocks/dirt.png",
-    "top": "blocks/grass_block_top.png"
+    "sides": "blocks/grass_block_side.png",
+    "up": "blocks/grass_block_top_new.png"
 }
