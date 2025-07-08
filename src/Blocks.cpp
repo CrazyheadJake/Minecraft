@@ -1,6 +1,7 @@
 #include "Blocks.h"
 #include "raymath.h"
 #include <unordered_map>
+#include <string>
 
 const std::unordered_map<std::string, Block> Blocks::s_stringToBlock = {
     {"air", Block::AIR},

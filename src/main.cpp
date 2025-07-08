@@ -39,17 +39,22 @@ void runGame() {
     double time = GetTime();
     double dt;
     int moved = 0;
+    SetWindowSize(GetMonitorWidth(GetCurrentMonitor()), GetMonitorHeight(GetCurrentMonitor()));
     ToggleFullscreen();
     DisableCursor();
 
     while (!WindowShouldClose()) {
-
+        #ifndef __linux__
+            if (!IsWindowFocused()) {
+                SetWindowState(FLAG_WINDOW_MINIMIZED);
+            }
+            if (IsWindowFocused()) {
+                if (!IsWindowFullscreen())
+                    ToggleFullscreen();
+            }
+        #endif
         dt = GetTime() - time;
         time = GetTime();
-        // std::cout << "DT: " << dt << std::endl;
-        // SetWindowFocused();
-
-        // std::cout << dXY.x << ", " << dXY.y << std::endl;
         moved += 1;
         world.update(dt);
         SetMousePosition(SCWIDTH/2, SCHEIGHT/2);
@@ -73,8 +78,6 @@ int main() {
     SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
 	
-    SetWindowFocused();
-
     // Loading Screen
     BeginDrawing();
     Image loadingScreen = LoadImage("assets/textures/sprites/minceraft.png");

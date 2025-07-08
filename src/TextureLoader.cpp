@@ -52,7 +52,7 @@ void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
     for (int i = 0; i < files.size(); i++) {
         s_numTextures++;
         const fs::directory_entry& f = files[i];
-        Image temp = LoadImage(f.path().c_str());
+        Image temp = LoadImage(f.path().string().c_str());
         ImageDraw(&image, temp, {0, 0, BLOCK_SIZE, BLOCK_SIZE}, {0, (float)BLOCK_SIZE*(i+1), BLOCK_SIZE, BLOCK_SIZE}, WHITE);
         UnloadImage(temp);
     }
@@ -60,7 +60,7 @@ void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
 
     Texture texture = LoadTextureFromImage(image);
     s_material = LoadMaterialDefault();
-    s_material.maps[0].texture = texture;
+    s_material.maps[MATERIAL_MAP_DIFFUSE].texture = texture;
     UnloadImage(image);
 }
 void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
@@ -82,7 +82,7 @@ void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
         json data = json::parse(model, nullptr, false);
         if (data.is_discarded())
             continue;
-        const std::string& filename = entry.path().filename().stem();
+        const std::string& filename = entry.path().filename().stem().string();
         Block block = Blocks::getBlock(filename);
         if (data.contains("default")) {
             setFace(block, Direction::UP, "default", fileIndices, data);

@@ -14,9 +14,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 # Enable AddressSanitizer if supported
 option(ENABLE_ASAN "Enable AddressSanitizer" ON)
 
-if(ENABLE_ASAN)
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag("-fsanitize=address" HAS_ASAN_FLAG)
+
+if(HAS_ASAN_FLAG AND ENABLE_ASAN)
+    message("AddressSanitizer is enabled")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -g")
-    set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=address")
+else()
+    message("AddressSanitizer is disabled")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 endif()
 
 # we define MY_SOURCES to be a list of all the source files for my project

@@ -16,7 +16,7 @@ class World {
         Vector3 getSpawn();
     private:
         const int m_seed;
-        int m_renderDistance = 4;
+        int m_renderDistance = 2;
         std::vector<std::unique_ptr<BlockMesh>> m_chunks;
         MyCamera m_player;
 

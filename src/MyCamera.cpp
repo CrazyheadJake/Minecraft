@@ -1,5 +1,10 @@
 #include "MyCamera.h"
 #include "raymath.h"
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 float toRadians(float angle) {
     return angle / 180.0 * M_PI;

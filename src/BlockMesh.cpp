@@ -30,7 +30,15 @@ BlockMesh::~BlockMesh()
 
 void BlockMesh::drawMesh() const
 {
-    DrawModel(m_model, {0, 0, 0}, 1, WHITE);
+    #ifdef __linux__
+        DrawModel(m_model, {0, 0, 0}, 1, WHITE);
+    #else
+        for (int i = 0; i < m_model.meshCount; i++) {
+            if (m_model.meshes[i].vertexCount > 0) {
+                DrawMesh(m_model.meshes[i], m_model.materials[0], m_model.transform);
+            }
+        }
+    #endif
     DrawBoundingBox(m_boundingBox, RED);
 }
 
@@ -112,7 +120,7 @@ Vector3 BlockMesh::getGlobalCoord(int i)        // Not sure if the math in this 
 
 Vector2 BlockMesh::getChunkLoc()
 {
-    return {(int)m_chunkOffset.x/LENGTH, (int)m_chunkOffset.z/WIDTH};
+    return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/WIDTH)};
 }
 
 void BlockMesh::setBlock(int x, int y, int z, Block block)
