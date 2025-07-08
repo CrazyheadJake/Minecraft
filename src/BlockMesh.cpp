@@ -31,6 +31,7 @@ BlockMesh::~BlockMesh()
 void BlockMesh::drawMesh() const
 {
     DrawModel(m_model, {0, 0, 0}, 1, WHITE);
+    DrawBoundingBox(m_boundingBox, RED);
 }
 
 void BlockMesh::generateMeshes()
@@ -109,6 +110,11 @@ Vector3 BlockMesh::getGlobalCoord(int i)        // Not sure if the math in this 
         (float)((i / LENGTH) % WIDTH)}, m_chunkOffset);
 }
 
+Vector2 BlockMesh::getChunkLoc()
+{
+    return {(int)m_chunkOffset.x/LENGTH, (int)m_chunkOffset.z/WIDTH};
+}
+
 void BlockMesh::setBlock(int x, int y, int z, Block block)
 {
     m_blocks[z * LENGTH + y * LENGTH * WIDTH + x] = block;
@@ -162,4 +168,6 @@ void BlockMesh::generateModel()
 
     // I'm afraid of memory leaks here (maybe GPU), but address sanitizer seems to think there are none
     m_model.materials[0] = TextureLoader::s_material;
+
+    m_boundingBox = GetModelBoundingBox(m_model);
 }

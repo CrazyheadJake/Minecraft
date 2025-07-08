@@ -6,6 +6,9 @@
 
 class BlockMesh {
     public:
+        static constexpr int LENGTH = 16;
+        static constexpr int WIDTH = 16;
+        static constexpr int HEIGHT = 32;
         BlockMesh(Vector3 offset = {0, 0, 0});
         BlockMesh(const BlockMesh&) = delete;            // No copy constructor
         BlockMesh& operator=(const BlockMesh&) = delete; // No copy assignment
@@ -15,16 +18,15 @@ class BlockMesh {
         void generateWorld();
         void updateMesh();
         Vector3 getGlobalCoord(int i);
+        Vector2 getChunkLoc();
         void setBlock(int x, int y, int z, Block block);
 
     private:
-        static constexpr int LENGTH = 16;
-        static constexpr int WIDTH = 16;
-        static constexpr int HEIGHT = 32;
         static const unsigned short MAX_VERTS = UINT16_MAX;
         
         std::array<Block, LENGTH*WIDTH*HEIGHT> m_blocks;
         Model m_model = {0};
+        BoundingBox m_boundingBox = {0};
         std::vector<Mesh> m_meshes;
 
         Vector3 m_chunkOffset;
