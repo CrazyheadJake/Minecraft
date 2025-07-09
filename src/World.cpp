@@ -3,8 +3,9 @@
 #include <unordered_set>
 #include "VectorUtils.h"
 #include <iostream>
+#include <thread>
 
-World::World(int seed): m_seed(seed)
+World::World(int seed): m_seed(seed), m_chunkLoader(&World::runChunkLoader, this)
 {
     m_player = MyCamera{
         getSpawn(), // position
@@ -16,44 +17,74 @@ World::World(int seed): m_seed(seed)
     };
 }
 
+World::~World() {
+    m_running = false;
+    if (m_chunkLoader.joinable())
+        m_chunkLoader.join();
+}
+
 void World::update(double dt)
 {
     if (IsKeyPressed(KEY_F2)) {
         EnableCursor();
         std::cout << "DEBUGGING" << std::endl;
     }
-    auto chunkLocs = World::genCirclePoints(m_renderDistance);
-    Vector2 playerChunk = Utils::floorVector(Vector2{m_player.position.x, m_player.position.z}, 16) / 16;
-    for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
-        // If chunk is too far away, unload it
-        Vector2 chunkLoc = (*it)->getChunkLoc() - playerChunk;
-        if (chunkLocs.find(chunkLoc) == chunkLocs.end()) {
-            m_chunks.erase(it);
-        }
-        else {
-            size_t erased = chunkLocs.erase(chunkLoc);
-            if (erased == 0) {
-                std::cerr << "Error: Chunk location not found in set." << std::endl;
-            }
-            if (erased > 1) {
-                std::cerr << "Warning: More than one chunk location removed from set." << std::endl;
-            }
-            it++;
-        }
-    }
-    for (Vector2 chunkLoc: chunkLocs) {
-        chunkLoc += playerChunk; // Offset chunk location to player's position
-        m_chunks.emplace_back(std::make_unique<BlockMesh>(Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::WIDTH}));
-    }
-
+    
     updatePlayer(dt);
+}
+
+void World::load(Texture& tex)
+{   
+    bool loading = true;
+    while (loading && !WindowShouldClose()) {
+        // Draw loading screen
+        BeginDrawing();
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), LIGHTGRAY);
+        DrawTexture(tex, 
+                    GetScreenWidth()/2 - tex.width/2, 
+                    GetScreenHeight()/2 - tex.height/2, 
+                    WHITE);
+        EndDrawing();
+        // Load chunks
+        m_chunkLock.lock();
+        loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
+        for (const auto& chunk: m_chunks) {
+            if (!chunk->isValid()) {
+                chunk->tryUploadMeshes();
+                loading = true;
+            }
+        }
+        m_chunkLock.unlock();
+    }
+}
+
+bool World::isLoaded()
+{
+    m_chunkLock.lock();
+    bool loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
+    for (const auto& chunk: m_chunks) {
+        if (!chunk->isValid()) {
+            loading = true;
+        }
+    }
+    m_chunkLock.unlock();
+    return loading;
 }
 
 void World::drawChunks()
 {
+    m_chunkLock.lock();
     for (const auto& chunk: m_chunks) {
-        chunk->drawMesh();
+        if (!chunk->isValid()) {
+            chunk->tryUploadMeshes();
+        }
+        else {
+            if (chunk->isVisible(m_player)) {
+                chunk->drawMesh();
+            }
+        }
     }
+    m_chunkLock.unlock();
 }
 
 void World::updatePlayer(double dt)
@@ -92,7 +123,7 @@ MyCamera World::getPlayer()
 
 Vector3 World::getSpawn()
 {
-    return {BlockMesh::LENGTH/2, BlockMesh::HEIGHT, BlockMesh::WIDTH/2};
+    return {BlockMesh::LENGTH/2, BlockMesh::HEIGHT, BlockMesh::LENGTH/2};
 }
 
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
@@ -111,4 +142,45 @@ std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genC
         }
     }
     return set;
+}
+
+void World::runChunkLoader()
+{
+    Vector2 playerChunk = {INFINITY, INFINITY}; // Initialize to an invalid location
+    std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> chunkLocs;
+    while (m_running) {
+        chunkLocs = World::genCirclePoints(m_renderDistance);
+        Vector2 temp = Utils::floorVector(Vector2{m_player.position.x, m_player.position.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+        if (playerChunk.x != INFINITY && Vector2Equals(temp, playerChunk)) {
+            // No change in player position, skip chunk loading
+            continue;
+        }
+        playerChunk = temp;
+        for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
+            // If chunk is too far away, unload it
+            Vector2 chunkLoc = (*it)->getChunkLoc() - playerChunk;
+            if (chunkLocs.find(chunkLoc) == chunkLocs.end()) {
+                m_chunkLock.lock();
+                m_chunks.erase(it);
+                m_chunkLock.unlock();
+            }
+            else {
+                size_t erased = chunkLocs.erase(chunkLoc);
+                if (erased == 0) {
+                    std::cerr << "Error: Chunk location not found in set." << std::endl;
+                }
+                if (erased > 1) {
+                    std::cerr << "Warning: More than one chunk location removed from set." << std::endl;
+                }
+                it++;
+            }
+        }
+        for (Vector2 chunkLoc: chunkLocs) {
+            chunkLoc += playerChunk; // Offset chunk location to player's position
+            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
+            m_chunkLock.lock();
+            m_chunks.push_back(std::move(chunk));
+            m_chunkLock.unlock();
+        }
+    }
 }

@@ -8,14 +8,13 @@
 #include <span>
 #include <algorithm>
 #include "TextureLoader.h"
+#include "MyCamera.h"
 
 BlockMesh::BlockMesh(Vector3 offset) : m_chunkOffset(offset)
-{
+{   
     generateWorld();
-
     generateMeshes();
-    generateModel();
-
+    m_state = State::MESH_GENERATED;
 }
 
 BlockMesh::~BlockMesh()
@@ -30,6 +29,7 @@ BlockMesh::~BlockMesh()
 
 void BlockMesh::drawMesh() const
 {
+    // DrawModel is nonfunctional on Windows, so we use DrawMesh instead
     #ifdef __linux__
         DrawModel(m_model, {0, 0, 0}, 1, WHITE);
     #else
@@ -88,7 +88,7 @@ void BlockMesh::generateMeshes()
 void BlockMesh::generateWorld()
 {
     for (int y  = 0; y < HEIGHT; y++) {
-        for (int z = 0; z < WIDTH; z++) {
+        for (int z = 0; z < LENGTH; z++) {
             for (int x = 0; x < LENGTH; x++) {
                 setBlock(x,y,z,Block::DIRT);
                 if (y > 20) {
@@ -107,25 +107,50 @@ void BlockMesh::generateWorld()
     }
 }
 
-void BlockMesh::updateMesh()
+bool BlockMesh::isValid()
 {
+    return m_state == State::MESH_UPLOADED;
+}
+
+bool BlockMesh::isVisible(const MyCamera &camera) const
+{
+    return true;
+}
+
+void BlockMesh::tryUploadMeshes()
+{
+    if (m_state == State::UNINITIALIZED) {
+        return;
+    }
+    if (m_state == State::MESH_GENERATED) {
+        uploadMeshes();
+        m_state = State::MESH_UPLOADED;
+    }
+}
+
+void BlockMesh::uploadMeshes()
+{
+    for (auto& mesh: m_meshes) {
+        UploadMesh(&mesh, true);
+    }
+    generateModel();
 }
 
 Vector3 BlockMesh::getGlobalCoord(int i)        // Not sure if the math in this works if length != width
 {
     return Vector3Add({(float)(i % LENGTH),
-        (float)((i / LENGTH / WIDTH) % HEIGHT), 
-        (float)((i / LENGTH) % WIDTH)}, m_chunkOffset);
+        (float)((i / LENGTH / LENGTH) % HEIGHT), 
+        (float)((i / LENGTH) % LENGTH)}, m_chunkOffset);
 }
 
 Vector2 BlockMesh::getChunkLoc()
 {
-    return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/WIDTH)};
+    return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/LENGTH)};
 }
 
 void BlockMesh::setBlock(int x, int y, int z, Block block)
 {
-    m_blocks[z * LENGTH + y * LENGTH * WIDTH + x] = block;
+    m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
 }
 
 void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
@@ -153,11 +178,6 @@ void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<
     mesh.texcoords = texcoords_ptr;
     mesh.normals = normals_ptr;
     mesh.indices = indices_ptr;
-
-    // Generate tangents (? idk if necessary)
-    // GenMeshTangents(&m_mesh);
-
-    UploadMesh(&mesh, true);
 }
 
 void BlockMesh::generateModel()

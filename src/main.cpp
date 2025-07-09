@@ -25,45 +25,43 @@ void drawFPS() {
 }
 
 void runGame() {
+    // Load the world
     TextureLoader::loadTextures();
+    Image loadingImg = LoadImage("assets/textures/sprites/minceraft.png");
+    Texture loadingTex = LoadTextureFromImage(loadingImg);
     World world;
-    world.update(0);
-
-    // std::vector<std::unique_ptr<BlockMesh>> chunks;
-    // for (int i = 0; i < 3; i++) {
-    //     for (int k = 0; k < 3; k++) {
-    //         chunks.push_back(std::make_unique<BlockMesh>(Vector3{16.0f*i, 0.0f, 16.0f*k}));
-    //     }
-    // }
+    world.load(loadingTex);
+    UnloadTexture(loadingTex);
+    UnloadImage(loadingImg);
 
     double time = GetTime();
     double dt;
-    int moved = 0;
     SetWindowSize(GetMonitorWidth(GetCurrentMonitor()), GetMonitorHeight(GetCurrentMonitor()));
+    SetWindowPosition(0, 0);
     ToggleFullscreen();
-    DisableCursor();
+    // DisableCursor();
 
     while (!WindowShouldClose()) {
-        #ifndef __linux__
-            if (!IsWindowFocused()) {
-                SetWindowState(FLAG_WINDOW_MINIMIZED);
+        // Solves alt+tab issue on windows
+        #ifdef _WIN32
+            if (!IsWindowFocused() && IsWindowFullscreen()) {
+                MinimizeWindow();
             }
-            if (IsWindowFocused()) {
-                if (!IsWindowFullscreen())
-                    ToggleFullscreen();
+            if (IsWindowFocused() && !IsWindowFullscreen()) {
+                // ToggleFullscreen();
             }
         #endif
+        // Game update logic
         dt = GetTime() - time;
         time = GetTime();
-        moved += 1;
         world.update(dt);
         SetMousePosition(SCWIDTH/2, SCHEIGHT/2);
+        
+        // Drawing to screen
         BeginDrawing();
         BeginMode3D(world.getPlayer());
 		ClearBackground(WHITE);
-
         world.drawChunks();
-
         EndMode3D();
         drawFPS();
 		EndDrawing();
@@ -77,23 +75,9 @@ int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
     SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
-	
-    // Loading Screen
-    BeginDrawing();
-    Image loadingScreen = LoadImage("assets/textures/sprites/minceraft.png");
-    DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), LIGHTGRAY);
-    Texture loadingTex = LoadTextureFromImage(loadingScreen);
-    DrawTexture(loadingTex, 
-                GetScreenWidth()/2 - loadingScreen.width/2, 
-                GetScreenHeight()/2 - loadingScreen.height/2, 
-                WHITE);
-    EndDrawing();
 
     // Main game
     runGame();
-
-    UnloadTexture(loadingTex);
-    UnloadImage(loadingScreen);
 
     CloseWindow();
     return 0;
