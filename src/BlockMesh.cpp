@@ -8,11 +8,11 @@
 #include <span>
 #include <algorithm>
 #include "TextureLoader.h"
-#include "MyCamera.h"
+#include "Player.h"
 
-BlockMesh::BlockMesh(Vector3 offset) : m_chunkOffset(offset)
+BlockMesh::BlockMesh(const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset)
 {   
-    generateWorld();
+    generateWorld(perlin);
     generateMeshes();
     m_state = State::MESH_GENERATED;
 }
@@ -94,18 +94,31 @@ void BlockMesh::generateMeshes()
     }
 }
 
-void BlockMesh::generateWorld()
+void BlockMesh::clearMeshes()
 {
-    for (int y  = 0; y < HEIGHT; y++) {
-        for (int z = 0; z < LENGTH; z++) {
-            for (int x = 0; x < LENGTH; x++) {
-                if (y > 20) {
+    for (auto& mesh: m_meshes) {
+        UnloadMesh(mesh);
+    }
+    free(m_model.meshes);
+    free(m_model.materials);
+    free(m_model.meshMaterial);
+    m_meshes.clear();
+}
+
+void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
+{
+    for (int x  = 0; x < LENGTH; x++) {
+        for (int z = 0; z < LENGTH; z++) {    
+            double noise = perlin.octave2D((double)(x + m_chunkOffset.x) * SCALE, (double)(z + m_chunkOffset.z) * SCALE, 3, 0.5);
+            int topHeight = SEALEVEL + (int)(noise * 20);
+            for (int y = 0; y < HEIGHT; y++) {
+                if (y > topHeight) {
                     setBlock(x, y, z, Block::AIR);
                 }
-                else if (y == 20) {
+                else if (y == topHeight) {
                     setBlock(x, y, z, Block::GRASS);
                 }
-                else if (y > 15) {
+                else if (y > topHeight - 4) {
                     setBlock(x, y, z, Block::DIRT);
                 }
                 else
@@ -120,39 +133,39 @@ bool BlockMesh::isValid()
     return m_state == State::MESH_UPLOADED;
 }
 
-bool BlockMesh::isVisible(MyCamera &camera) const
+bool BlockMesh::isVisible(Player &camera) const
 {
     bool visible = false;
     Vector3 coord = getCorner(0);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(1);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(2);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(3);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(4);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(5);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(6);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     coord = getCorner(7);
-    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
         visible = true;
     }
     

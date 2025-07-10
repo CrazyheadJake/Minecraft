@@ -3,9 +3,10 @@
 #include <memory>
 #include <unordered_set>
 #include "BlockMesh.h"
-#include "MyCamera.h"
+#include "Player.h"
 #include "VectorUtils.h"
 #include <thread>
+#include "reputeless/PerlinNoise.hpp"
 
 class World {
     public:
@@ -16,13 +17,14 @@ class World {
         bool isLoaded();
         void drawChunks();
         void updatePlayer(double dt);
-        MyCamera getPlayer();
+        Player getPlayer();
         Vector3 getSpawn();
     private:
-        const int m_seed;
-        float m_renderDistance = 15.5;
+        const siv::PerlinNoise::seed_type m_seed;
+        const siv::PerlinNoise m_perlinNoise;
+        float m_renderDistance = 10.5;
         std::vector<std::unique_ptr<BlockMesh>> m_chunks;
-        MyCamera m_player;
+        Player m_player;
         bool m_running = true;
         std::thread m_chunkLoader;
         std::mutex m_chunkLock;

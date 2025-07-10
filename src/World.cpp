@@ -5,16 +5,8 @@
 #include <iostream>
 #include <thread>
 
-World::World(int seed): m_seed(seed), m_chunkLoader(&World::runChunkLoader, this)
+World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
-    m_player = MyCamera{
-        getSpawn(), // position
-        Vector3{1, 0, 0}, // fwd
-        Vector3{0, 1, 0}, // up
-        Vector3{0, 0, 1}, // right
-        90.0f, // fovy
-        CAMERA_PERSPECTIVE // perspective
-    };
 }
 
 World::~World() {
@@ -56,6 +48,7 @@ void World::load(Texture& tex)
         }
         m_chunkLock.unlock();
     }
+    std::cout << "World loaded " << m_chunks.size() << " chunks." << std::endl;
 }
 
 bool World::isLoaded()
@@ -90,8 +83,8 @@ void World::drawChunks()
 void World::updatePlayer(double dt)
 {
     Vector2 dXY = GetMouseDelta();
-    m_player.changeYaw(dXY.x * m_player.rotateSpeed);
-    m_player.changePitch(dXY.y * m_player.rotateSpeed);
+    m_player.changeYaw(dXY.x);
+    m_player.changePitch(dXY.y);
     m_player.update();
     
     if (IsKeyDown(KEY_W)) {
@@ -109,21 +102,27 @@ void World::updatePlayer(double dt)
         m_player.moveRight(-dt);
     }
     if (IsKeyDown(KEY_SPACE)) {
-        m_player.position += m_player.up * dt * m_player.speed;
+        m_player.moveUp(dt);
     }
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
-        m_player.position -= m_player.up * dt * m_player.speed;
+        m_player.moveUp(-dt);
+    }
+
+    Ray ray = GetScreenToWorldRay(GetMousePosition(), m_player);
+    
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+
     }
 }
 
-MyCamera World::getPlayer()
+Player World::getPlayer()
 {
     return m_player;
 }
 
 Vector3 World::getSpawn()
 {
-    return {BlockMesh::LENGTH/2, BlockMesh::HEIGHT, BlockMesh::LENGTH/2};
+    return {BlockMesh::LENGTH/2, 66, BlockMesh::LENGTH/2};
 }
 
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
@@ -150,7 +149,7 @@ void World::runChunkLoader()
     std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> chunkLocs;
     while (m_running) {
         chunkLocs = World::genCirclePoints(m_renderDistance);
-        Vector2 temp = Utils::floorVector(Vector2{m_player.position.x, m_player.position.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+        Vector2 temp = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
         if (playerChunk.x != INFINITY && Vector2Equals(temp, playerChunk)) {
             // No change in player position, skip chunk loading
             continue;
@@ -177,7 +176,7 @@ void World::runChunkLoader()
         }
         for (Vector2 chunkLoc: chunkLocs) {
             chunkLoc += playerChunk; // Offset chunk location to player's position
-            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
+            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(m_perlinNoise, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
             m_chunkLock.lock();
             m_chunks.push_back(std::move(chunk));
             m_chunkLock.unlock();
