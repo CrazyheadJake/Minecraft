@@ -39,7 +39,7 @@ void runGame() {
     SetWindowSize(GetMonitorWidth(GetCurrentMonitor()), GetMonitorHeight(GetCurrentMonitor()));
     SetWindowPosition(0, 0);
     ToggleFullscreen();
-    // DisableCursor();
+    DisableCursor();
 
     while (!WindowShouldClose()) {
         // Solves alt+tab issue on windows

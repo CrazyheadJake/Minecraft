@@ -39,7 +39,7 @@ void BlockMesh::drawMesh() const
             }
         }
     #endif
-    DrawBoundingBox(m_boundingBox, RED);
+    // DrawBoundingBox(m_boundingBox, RED);
 }
 
 void BlockMesh::generateMeshes()
@@ -67,18 +67,27 @@ void BlockMesh::generateMeshes()
         const std::vector<unsigned short>& blockIndices = Blocks::getIndices(m_blocks[i]);
         const std::vector<Vector2>& blockTexcoords = Blocks::getTexcoords(m_blocks[i]);
         const std::vector<Vector3>& blockNormals = Blocks::getNormals(m_blocks[i]);
-
-        for (unsigned short index : blockIndices) {
-            indices.push_back(index + vertices.size());
+        int vertCount = vertices.size();
+        int facesSkipped = 0;
+        for (int face = 0; face < 6; face++) {
+            // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
+            Vector3 normal = blockNormals[face * 4];
+            Vector3 localCoord = getLocalCoord(i);
+            Block neighborBlock = getBlockLocal(localCoord + normal);
+            if (neighborBlock != Block::AIR && neighborBlock != Block::UNKNOWN) {
+                facesSkipped++;
+                continue; 
+            }
+            for (int index = face * 6; index < face * 6 + 6; index++) {
+                indices.push_back(blockIndices[index] + vertCount - facesSkipped * 4);
+            }
+            for (int vert = face * 4; vert < face * 4 + 4; vert++) {
+                vertices.push_back(Vector3Add(blockVertices[vert], offset));
+                Direction d = Blocks::getDirection(blockNormals[vert]);
+                texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
+                normals.push_back(blockNormals[vert]);  
+            }
         }
-        for (Vector3 vert : blockVertices) {
-            vertices.push_back(Vector3Add(vert, offset));
-        }
-        for (int tex = 0; tex < blockTexcoords.size(); tex++) {
-            Direction d = Blocks::getDirection(blockNormals[tex]);
-            texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[tex]));
-        }
-        normals.insert(normals.end(), blockNormals.begin(), blockNormals.end());
     }
     if (vertices.size() > 0) {
         addMesh(vertices, indices, texcoords, normals);
@@ -90,7 +99,6 @@ void BlockMesh::generateWorld()
     for (int y  = 0; y < HEIGHT; y++) {
         for (int z = 0; z < LENGTH; z++) {
             for (int x = 0; x < LENGTH; x++) {
-                setBlock(x,y,z,Block::DIRT);
                 if (y > 20) {
                     setBlock(x, y, z, Block::AIR);
                 }
@@ -112,9 +120,43 @@ bool BlockMesh::isValid()
     return m_state == State::MESH_UPLOADED;
 }
 
-bool BlockMesh::isVisible(const MyCamera &camera) const
+bool BlockMesh::isVisible(MyCamera &camera) const
 {
-    return true;
+    bool visible = false;
+    Vector3 coord = getCorner(0);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(1);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(2);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(3);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(4);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(5);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(6);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    coord = getCorner(7);
+    if (Vector3DotProduct(coord - camera.position, camera.fwd) > 0) {
+        visible = true;
+    }
+    
+    return visible;
 }
 
 void BlockMesh::tryUploadMeshes()
@@ -128,6 +170,13 @@ void BlockMesh::tryUploadMeshes()
     }
 }
 
+Vector3 BlockMesh::getLocalCoord(int i) const
+{
+    return {(float)(i % LENGTH),
+        (float)((i / LENGTH / LENGTH) % HEIGHT), 
+        (float)((i / LENGTH) % LENGTH)};
+}
+
 void BlockMesh::uploadMeshes()
 {
     for (auto& mesh: m_meshes) {
@@ -136,14 +185,14 @@ void BlockMesh::uploadMeshes()
     generateModel();
 }
 
-Vector3 BlockMesh::getGlobalCoord(int i)        // Not sure if the math in this works if length != width
+Vector3 BlockMesh::getGlobalCoord(int i) const        // Not sure if the math in this works if length != width
 {
     return Vector3Add({(float)(i % LENGTH),
         (float)((i / LENGTH / LENGTH) % HEIGHT), 
         (float)((i / LENGTH) % LENGTH)}, m_chunkOffset);
 }
 
-Vector2 BlockMesh::getChunkLoc()
+Vector2 BlockMesh::getChunkLoc() const
 {
     return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/LENGTH)};
 }
@@ -151,6 +200,31 @@ Vector2 BlockMesh::getChunkLoc()
 void BlockMesh::setBlock(int x, int y, int z, Block block)
 {
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
+}
+
+Block BlockMesh::getBlockLocal(Vector3 localCoord) const
+{
+    if (localCoord.x < 0 || localCoord.x >= LENGTH ||
+        localCoord.y < 0 || localCoord.y >= HEIGHT ||
+        localCoord.z < 0 || localCoord.z >= LENGTH) {
+        return Block::UNKNOWN; // Out of bounds
+    }
+    return m_blocks[(int)localCoord.x + (int)localCoord.y * LENGTH * LENGTH + (int)localCoord.z * LENGTH];
+}
+
+Vector3 BlockMesh::getCorner(int i) const
+{
+    switch (i) {
+        case 0: return m_boundingBox.min;
+        case 1: return {m_boundingBox.max.x, m_boundingBox.min.y, m_boundingBox.min.z};
+        case 2: return {m_boundingBox.min.x, m_boundingBox.min.y, m_boundingBox.max.z};
+        case 3: return {m_boundingBox.max.x, m_boundingBox.min.y, m_boundingBox.max.z};
+        case 4: return {m_boundingBox.min.x, m_boundingBox.max.y, m_boundingBox.min.z};
+        case 5: return {m_boundingBox.max.x, m_boundingBox.max.y, m_boundingBox.min.z};
+        case 6: return {m_boundingBox.min.x, m_boundingBox.max.y, m_boundingBox.max.z};
+        case 7: return m_boundingBox.max;
+    }
+    return {0, 0, 0}; // This line is unreachable, but it prevents a warning about not returning a value
 }
 
 void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
@@ -197,5 +271,5 @@ void BlockMesh::generateModel()
     // I'm afraid of memory leaks here (maybe GPU), but address sanitizer seems to think there are none
     m_model.materials[0] = TextureLoader::s_material;
 
-    m_boundingBox = GetModelBoundingBox(m_model);
+    m_boundingBox = {getGlobalCoord(0) - Vector3{0.5, 0.5, 0.5}, getGlobalCoord(LENGTH * LENGTH * HEIGHT - 1) + Vector3{0.5, 0.5, 0.5}};
 }

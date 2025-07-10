@@ -17,11 +17,13 @@ class BlockMesh {
         void generateMeshes();
         void generateWorld();
         bool isValid();
-        bool isVisible(const MyCamera& camera) const;
+        bool isVisible(MyCamera& camera) const;
         void tryUploadMeshes();
-        Vector3 getGlobalCoord(int i);
-        Vector2 getChunkLoc();
+        Vector3 getLocalCoord(int i) const;
+        Vector3 getGlobalCoord(int i) const;
+        Vector2 getChunkLoc() const;
         void setBlock(int x, int y, int z, Block block);
+        Block getBlockLocal(Vector3 localCoord) const;
 
     private:
         enum class State {
@@ -41,5 +43,6 @@ class BlockMesh {
         void addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals);
         void generateModel();
         void uploadMeshes();
+        Vector3 getCorner(int i) const;
 
 };
