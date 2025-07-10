@@ -108,11 +108,42 @@ void World::updatePlayer(double dt)
         m_player.moveUp(-dt);
     }
 
-    Ray ray = GetScreenToWorldRay(GetMousePosition(), m_player);
-    
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-
+    Ray ray = GetScreenToWorldRay({(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, m_player);
+    Vector2 playerChunk = m_player.getChunk();
+    m_chunkLock.lock();
+    RayCollision closestCollision = {false, 0, {0, 0, 0}, {0, 0, 0}};
+    BlockMesh* closestChunk = nullptr;
+    for (auto& chunk : m_chunks) {
+        if (Vector2Distance(chunk->getChunkLoc(), playerChunk) <= 2) {
+            RayCollision collision = chunk->rayCollision(ray);
+            if (collision.hit) {
+                if (!closestCollision.hit || collision.distance < closestCollision.distance) {
+                    closestCollision = collision;
+                    closestChunk = chunk.get();
+                }
+            }
+        }
     }
+    if (closestCollision.hit && closestCollision.distance < 6.0f) {
+        closestCollision.point -= closestCollision.normal * 0.01f; // Offset the collision point slightly to avoid rounding issues
+        closestCollision.point.x = roundf(closestCollision.point.x);
+        closestCollision.point.y = roundf(closestCollision.point.y);
+        closestCollision.point.z = roundf(closestCollision.point.z);
+        Vector3 localCoord = Vector3Subtract(closestCollision.point, closestChunk->getGlobalCoord(0));
+        m_player.setTargetBlock(closestCollision.point);
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            std::cout << "Removing block at: " << localCoord.x << ", " << localCoord.y << ", " << localCoord.z << std::endl;
+            closestChunk->setBlock((int)localCoord.x, (int)localCoord.y, (int)localCoord.z, Block::AIR, true);
+        }
+        else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+            localCoord += closestCollision.normal; // Place block on the side of the clicked block
+            closestChunk->setBlock((int)localCoord.x, (int)localCoord.y, (int)localCoord.z, Block::DIRT, true);
+        }
+    }
+    else {
+        m_player.setTargetBlock({-INFINITY, -INFINITY, -INFINITY});
+    }
+    m_chunkLock.unlock();
 }
 
 Player World::getPlayer()

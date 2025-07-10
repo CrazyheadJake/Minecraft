@@ -85,6 +85,20 @@ Vector3 Player::getDirection() const
     return m_fwd;
 }
 
+void Player::setTargetBlock(Vector3 block)
+{
+    m_targetBlock = block;
+}
+
+void Player::drawHud() const
+{   
+    BeginMode3D(*this);
+    DrawCubeWires(m_targetBlock, 1, 1, 1, BLACK);
+    EndMode3D();
+    int cursorSize = 5;
+    DrawRectangle(GetScreenWidth()/2.0f - cursorSize/2, GetScreenHeight()/2.0f - cursorSize/2, cursorSize, cursorSize, RED);
+}
+
 void Player::moveUp(float dt)
 {
     m_position += m_up * dt * m_speed;

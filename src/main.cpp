@@ -48,7 +48,7 @@ void runGame() {
                 MinimizeWindow();
             }
             if (IsWindowFocused() && !IsWindowFullscreen()) {
-                // ToggleFullscreen();
+                ToggleFullscreen();
             }
         #endif
         // Game update logic
@@ -63,6 +63,7 @@ void runGame() {
 		ClearBackground(WHITE);
         world.drawChunks();
         EndMode3D();
+        world.getPlayer().drawHud();
         drawFPS();
 		EndDrawing();
     }

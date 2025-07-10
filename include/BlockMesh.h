@@ -21,8 +21,9 @@ class BlockMesh {
         Vector3 getLocalCoord(int i) const;
         Vector3 getGlobalCoord(int i) const;
         Vector2 getChunkLoc() const;
-        void setBlock(int x, int y, int z, Block block);
+        void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
         Block getBlockLocal(Vector3 localCoord) const;
+        RayCollision rayCollision(const Ray& ray) const;
 
     private:
         enum class State {

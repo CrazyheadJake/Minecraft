@@ -210,9 +210,14 @@ Vector2 BlockMesh::getChunkLoc() const
     return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/LENGTH)};
 }
 
-void BlockMesh::setBlock(int x, int y, int z, Block block)
+void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
 {
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
+    if (updateMesh) {
+        clearMeshes();
+        generateMeshes();
+        m_state = State::MESH_GENERATED;
+    }
 }
 
 Block BlockMesh::getBlockLocal(Vector3 localCoord) const
@@ -223,6 +228,17 @@ Block BlockMesh::getBlockLocal(Vector3 localCoord) const
         return Block::UNKNOWN; // Out of bounds
     }
     return m_blocks[(int)localCoord.x + (int)localCoord.y * LENGTH * LENGTH + (int)localCoord.z * LENGTH];
+}
+
+RayCollision BlockMesh::rayCollision(const Ray &ray) const
+{
+    for (const auto& mesh : m_meshes) {
+        RayCollision collision = GetRayCollisionMesh(ray, mesh, m_model.transform);
+        if (collision.hit) {
+            return collision;
+        }
+    }
+    return {false, 0, {0, 0, 0}, {0, 0, 0}}; // No collision
 }
 
 Vector3 BlockMesh::getCorner(int i) const

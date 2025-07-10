@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "Vector3d.h"
+#include <cmath>
 
 class Player {
     public:
@@ -17,6 +18,8 @@ class Player {
         void moveUp(float dx);
         Vector3 getLocation() const;
         Vector3 getDirection() const;
+        void setTargetBlock(Vector3 block);
+        void drawHud() const;
 
         Vector2 getChunk() const;
     private:
@@ -24,6 +27,8 @@ class Player {
         Vector3 m_fwd;
         Vector3 m_up;
         Vector3 m_right;
+
+        Vector3 m_targetBlock = {-INFINITY, -INFINITY, -INFINITY};
 
         float m_fovy;
         int m_perspective;
