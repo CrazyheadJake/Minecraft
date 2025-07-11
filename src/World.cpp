@@ -21,7 +21,7 @@ void World::update(double dt)
         EnableCursor();
         std::cout << "DEBUGGING" << std::endl;
     }
-    
+
     updatePlayer(dt);
 }
 
@@ -40,7 +40,7 @@ void World::load(Texture& tex)
         // Load chunks
         m_chunkLock.lock();
         loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
-        for (const auto& chunk: m_chunks) {
+        for (const auto& [chunkLoc, chunk]: m_chunks) {
             if (!chunk->isValid()) {
                 chunk->tryUploadMeshes();
                 loading = true;
@@ -55,7 +55,7 @@ bool World::isLoaded()
 {
     m_chunkLock.lock();
     bool loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
-    for (const auto& chunk: m_chunks) {
+    for (const auto& [chunkLoc, chunk]: m_chunks) {
         if (!chunk->isValid()) {
             loading = true;
         }
@@ -67,7 +67,7 @@ bool World::isLoaded()
 void World::drawChunks()
 {
     m_chunkLock.lock();
-    for (const auto& chunk: m_chunks) {
+    for (const auto& [chunkLoc, chunk]: m_chunks) {
         if (!chunk->isValid()) {
             chunk->tryUploadMeshes();
         }
@@ -109,41 +109,26 @@ void World::updatePlayer(double dt)
     }
 
     Ray ray = GetScreenToWorldRay({(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, m_player);
-    Vector2 playerChunk = m_player.getChunk();
-    m_chunkLock.lock();
-    RayCollision closestCollision = {false, 0, {0, 0, 0}, {0, 0, 0}};
-    BlockMesh* closestChunk = nullptr;
-    for (auto& chunk : m_chunks) {
-        if (Vector2Distance(chunk->getChunkLoc(), playerChunk) <= 2) {
-            RayCollision collision = chunk->rayCollision(ray);
-            if (collision.hit) {
-                if (!closestCollision.hit || collision.distance < closestCollision.distance) {
-                    closestCollision = collision;
-                    closestChunk = chunk.get();
-                }
-            }
-        }
-    }
-    if (closestCollision.hit && closestCollision.distance < 6.0f) {
-        closestCollision.point -= closestCollision.normal * 0.01f; // Offset the collision point slightly to avoid rounding issues
-        closestCollision.point.x = roundf(closestCollision.point.x);
-        closestCollision.point.y = roundf(closestCollision.point.y);
-        closestCollision.point.z = roundf(closestCollision.point.z);
-        Vector3 localCoord = Vector3Subtract(closestCollision.point, closestChunk->getGlobalCoord(0));
-        m_player.setTargetBlock(closestCollision.point);
+    RayCollision collision = rayCollision(ray, 6.0f);
+
+    if (collision.hit && collision.distance <= 6.0f) {
+        // collision.point -= collision.normal * 0.01f; // Offset the collision point slightly to avoid rounding issues
+        // collision.point.x = roundf(collision.point.x);
+        // collision.point.y = roundf(collision.point.y);
+        // collision.point.z = roundf(collision.point.z);
+        m_player.setTargetBlock(collision.point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            std::cout << "Removing block at: " << localCoord.x << ", " << localCoord.y << ", " << localCoord.z << std::endl;
-            closestChunk->setBlock((int)localCoord.x, (int)localCoord.y, (int)localCoord.z, Block::AIR, true);
+            std::cout << "Removing block at: " << collision.point.x << ", " << collision.point.y << ", " << collision.point.z << std::endl;
+            setBlockGlobal(collision.point, Block::AIR, true);
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
-            localCoord += closestCollision.normal; // Place block on the side of the clicked block
-            closestChunk->setBlock((int)localCoord.x, (int)localCoord.y, (int)localCoord.z, Block::DIRT, true);
+            collision.point += collision.normal; // Place block on the side of the clicked block
+            setBlockGlobal(collision.point, Block::DIRT, true);
         }
     }
     else {
         m_player.setTargetBlock({-INFINITY, -INFINITY, -INFINITY});
     }
-    m_chunkLock.unlock();
 }
 
 Player World::getPlayer()
@@ -154,6 +139,96 @@ Player World::getPlayer()
 Vector3 World::getSpawn()
 {
     return {BlockMesh::LENGTH/2, 66, BlockMesh::LENGTH/2};
+}
+
+RayCollision World::rayCollision(const Ray &ray, float distance)
+{
+    Vector3 start = ray.position;
+    int stepX = (ray.direction.x > 0) ? 1 : -1;
+    int stepY = (ray.direction.y > 0) ? 1 : -1;
+    int stepZ = (ray.direction.z > 0) ? 1 : -1;
+    float tDeltaX = fabs(1.0f / ray.direction.x);
+    float tDeltaY = fabs(1.0f / ray.direction.y);
+    float tDeltaZ = fabs(1.0f / ray.direction.z);
+    float tMaxX = (stepX > 0) ? (floorf(start.x + 1) - start.x) * tDeltaX : (start.x - floorf(start.x)) * tDeltaX;
+    float tMaxY = (stepY > 0) ? (floorf(start.y + 1) - start.y) * tDeltaY : (start.y - floorf(start.y)) * tDeltaY;
+    float tMaxZ = (stepZ > 0) ? (floorf(start.z + 1) - start.z) * tDeltaZ : (start.z - floorf(start.z)) * tDeltaZ;
+    int lastStep = 0;
+
+    while (Vector3Distance(start, ray.position) <= distance) {
+        if(tMaxX < tMaxY) {
+            if(tMaxX < tMaxZ) {
+                start.x += stepX;
+                tMaxX += tDeltaX;
+                lastStep = 0; // X step
+            } 
+            else {
+                start.z += stepZ;
+                tMaxZ += tDeltaZ;
+                lastStep = 2; // Z step
+            }
+        } 
+        else {
+            if(tMaxY < tMaxZ) {
+                start.y += stepY;
+                tMaxY += tDeltaY;
+                lastStep = 1; // Y step
+            } 
+            else {
+                start.z += stepZ;
+                tMaxZ += tDeltaZ;
+                lastStep = 2; // Z step
+            }
+        }
+        if (getBlockGlobal(start) != Block::AIR) {
+            // We hit a block, return the collision
+            RayCollision collision;
+            collision.hit = true;
+            collision.distance = Vector3Distance(ray.position, start);
+            collision.point = start;
+            collision.normal = {0, 0, 0};
+            if (lastStep == 0) {
+                collision.normal.x = -stepX;
+            } else if (lastStep == 1) {
+                collision.normal.y = -stepY;
+            } else if (lastStep == 2) {
+                collision.normal.z = -stepZ;
+            }
+            return collision;
+        }
+    }
+
+    return {false, 0, {0, 0, 0}, {0, 0, 0}};
+}
+
+Block World::getBlockGlobal(Vector3 globalCoord)
+{
+    Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return Block::UNKNOWN; // Chunk not found
+    }
+    const std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
+    return chunk->getBlockLocal(localCoord);
+}
+
+void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
+{
+    Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return; // Chunk not found
+    }
+    const std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
+    chunk->setBlock(localCoord, block, updateMesh);
 }
 
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
@@ -186,14 +261,18 @@ void World::runChunkLoader()
             continue;
         }
         playerChunk = temp;
+        // CAREFUL, we are not locking before iterating over m_chunks, so we must ensure no other thread is invalidating iterators
         for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
             // If chunk is too far away, unload it
-            Vector2 chunkLoc = (*it)->getChunkLoc() - playerChunk;
+            Vector2 chunkLoc = it->second->getChunkLoc() - playerChunk;
             if (chunkLocs.find(chunkLoc) == chunkLocs.end()) {
                 m_chunkLock.lock();
-                m_chunks.erase(it);
+                // Get the chunk to be unloaded, but don't unload it until after the lock is released
+                std::unique_ptr<BlockMesh> chunk = std::move(it->second);   
+                it = m_chunks.erase(it);
                 m_chunkLock.unlock();
             }
+            // Chunk is already loaded, so we can remove it from the set of chunk locations
             else {
                 size_t erased = chunkLocs.erase(chunkLoc);
                 if (erased == 0) {
@@ -205,11 +284,13 @@ void World::runChunkLoader()
                 it++;
             }
         }
+        // All remaining chunk locations in chunkLocs are new chunks to be loaded
         for (Vector2 chunkLoc: chunkLocs) {
             chunkLoc += playerChunk; // Offset chunk location to player's position
+            // Generate the chunk before we lock the mutex to avoid blocking other threads
             std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(m_perlinNoise, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
             m_chunkLock.lock();
-            m_chunks.push_back(std::move(chunk));
+            m_chunks.insert_or_assign(chunk->getChunkLoc(), std::move(chunk));
             m_chunkLock.unlock();
         }
     }

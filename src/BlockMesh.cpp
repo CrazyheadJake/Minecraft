@@ -9,6 +9,7 @@
 #include <algorithm>
 #include "TextureLoader.h"
 #include "Player.h"
+#include "VectorUtils.h"
 
 BlockMesh::BlockMesh(const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset)
 {   
@@ -210,13 +211,18 @@ Vector2 BlockMesh::getChunkLoc() const
     return {floorf(m_chunkOffset.x/LENGTH), floorf(m_chunkOffset.z/LENGTH)};
 }
 
+void BlockMesh::setBlock(Vector3 loc, Block block, bool updateMesh)
+{
+    setBlock((int)loc.x, (int)loc.y, (int)loc.z, block, updateMesh);
+}
+
 void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
 {
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
     if (updateMesh) {
         clearMeshes();
         generateMeshes();
-        m_state = State::MESH_GENERATED;
+        uploadMeshes();
     }
 }
 
@@ -227,18 +233,14 @@ Block BlockMesh::getBlockLocal(Vector3 localCoord) const
         localCoord.z < 0 || localCoord.z >= LENGTH) {
         return Block::UNKNOWN; // Out of bounds
     }
-    return m_blocks[(int)localCoord.x + (int)localCoord.y * LENGTH * LENGTH + (int)localCoord.z * LENGTH];
+    return m_blocks[(int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH];
 }
 
-RayCollision BlockMesh::rayCollision(const Ray &ray) const
+bool BlockMesh::isLocalCoord(Vector3 localCoord) const
 {
-    for (const auto& mesh : m_meshes) {
-        RayCollision collision = GetRayCollisionMesh(ray, mesh, m_model.transform);
-        if (collision.hit) {
-            return collision;
-        }
-    }
-    return {false, 0, {0, 0, 0}, {0, 0, 0}}; // No collision
+    return localCoord.x >= 0 && localCoord.x < LENGTH &&
+           localCoord.y >= 0 && localCoord.y < HEIGHT &&
+           localCoord.z >= 0 && localCoord.z < LENGTH;
 }
 
 Vector3 BlockMesh::getCorner(int i) const
@@ -285,7 +287,7 @@ void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<
 
 void BlockMesh::generateModel()
 {
-    m_model.transform = MatrixIdentity();
+    m_model.transform = MatrixTranslate(0.5, 0.5, 0.5); // Block corners are now integers instead of 0.5
 
     m_model.meshCount = m_meshes.size();
     m_model.meshes = (Mesh*)malloc(m_meshes.size() * sizeof(Mesh));

@@ -11,6 +11,8 @@
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
 
+// #define DEBUG
+
 void printMatrix(Matrix matrix) {
     std::cout << "[";
     std::cout << matrix.m0 << ", " << matrix.m4 << "," << matrix.m8 << "," << matrix.m12 << "," << std::endl;
@@ -38,8 +40,10 @@ void runGame() {
     double dt;
     SetWindowSize(GetMonitorWidth(GetCurrentMonitor()), GetMonitorHeight(GetCurrentMonitor()));
     SetWindowPosition(0, 0);
-    ToggleFullscreen();
-    DisableCursor();
+    #ifndef DEBUG
+        ToggleFullscreen();
+        DisableCursor();
+    #endif
 
     while (!WindowShouldClose()) {
         // Solves alt+tab issue on windows
@@ -48,23 +52,30 @@ void runGame() {
                 MinimizeWindow();
             }
             if (IsWindowFocused() && !IsWindowFullscreen()) {
-                ToggleFullscreen();
+                #ifndef DEBUG
+                    ToggleFullscreen();
+                #endif
             }
         #endif
         // Game update logic
         dt = GetTime() - time;
         time = GetTime();
+                
         world.update(dt);
-        SetMousePosition(SCWIDTH/2, SCHEIGHT/2);
+        SetMousePosition(GetMonitorWidth(GetCurrentMonitor())/2, GetMonitorHeight(GetCurrentMonitor())/2);
         
         // Drawing to screen
         BeginDrawing();
         BeginMode3D(world.getPlayer());
 		ClearBackground(WHITE);
+        // 3D rendering
         world.drawChunks();
+
         EndMode3D();
+        // 2D rendering
         world.getPlayer().drawHud();
         drawFPS();
+
 		EndDrawing();
     }
 
@@ -74,7 +85,7 @@ void runGame() {
 
 int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
-    // SetTraceLogLevel(LOG_WARNING);
+    SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
 
     // Main game

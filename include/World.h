@@ -7,6 +7,8 @@
 #include "VectorUtils.h"
 #include <thread>
 #include "reputeless/PerlinNoise.hpp"
+#include "Blocks.h"
+#include <unordered_map>
 
 class World {
     public:
@@ -19,11 +21,16 @@ class World {
         void updatePlayer(double dt);
         Player getPlayer();
         Vector3 getSpawn();
+        RayCollision rayCollision(const Ray &ray, float distance);
+        Block getBlockGlobal(Vector3 globalCoord);
+        void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
+
     private:
         const siv::PerlinNoise::seed_type m_seed;
         const siv::PerlinNoise m_perlinNoise;
         float m_renderDistance = 10.5;
-        std::vector<std::unique_ptr<BlockMesh>> m_chunks;
+        std::unordered_map<Vector2, std::unique_ptr<BlockMesh>, Utils::Vector2Hash, Utils::Vector2Equal> m_chunks;
+        // std::priority
         Player m_player;
         bool m_running = true;
         std::thread m_chunkLoader;

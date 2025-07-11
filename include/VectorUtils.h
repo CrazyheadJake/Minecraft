@@ -18,6 +18,7 @@ namespace Utils {
     };
 
     Vector2 floorVector(const Vector2& v, int precision = 1);
+    Vector3 floorVector(const Vector3& v, int precision = 1);
     Vector2 roundVector(const Vector2& v, int precision = 1);
     Vector3 roundVector(const Vector3& v, int precision = 1);
 

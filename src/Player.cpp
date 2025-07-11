@@ -87,13 +87,13 @@ Vector3 Player::getDirection() const
 
 void Player::setTargetBlock(Vector3 block)
 {
-    m_targetBlock = block;
+    m_targetBlock = Utils::floorVector(block, 1.0f);
 }
 
 void Player::drawHud() const
 {   
     BeginMode3D(*this);
-    DrawCubeWires(m_targetBlock, 1, 1, 1, BLACK);
+    DrawCubeWires(m_targetBlock + Vector3{0.5f, 0.5f, 0.5f}, 1, 1, 1, BLACK);
     EndMode3D();
     int cursorSize = 5;
     DrawRectangle(GetScreenWidth()/2.0f - cursorSize/2, GetScreenHeight()/2.0f - cursorSize/2, cursorSize, cursorSize, RED);
