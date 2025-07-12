@@ -68,14 +68,14 @@ void World::drawChunks()
 {
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (!chunk->isValid()) {
+        // if (!chunk->isValid()) {
             chunk->tryUploadMeshes();
-        }
-        else {
+        // }
+        // else {
             if (chunk->isVisible(m_player)) {
                 chunk->drawMesh();
             }
-        }
+        // }
     }
     m_chunkLock.unlock();
 }
@@ -112,10 +112,6 @@ void World::updatePlayer(double dt)
     RayCollision collision = rayCollision(ray, 6.0f);
 
     if (collision.hit && collision.distance <= 6.0f) {
-        // collision.point -= collision.normal * 0.01f; // Offset the collision point slightly to avoid rounding issues
-        // collision.point.x = roundf(collision.point.x);
-        // collision.point.y = roundf(collision.point.y);
-        // collision.point.z = roundf(collision.point.z);
         m_player.setTargetBlock(collision.point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             std::cout << "Removing block at: " << collision.point.x << ", " << collision.point.y << ", " << collision.point.z << std::endl;
@@ -231,6 +227,21 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
     chunk->setBlock(localCoord, block, updateMesh);
 }
 
+void World::regenerateChunk(Vector2 chunkLoc)
+{
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    // Chunk doesn't exist
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return;
+    }
+    // Reload mesh for existing chunk
+    std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    chunk->clearMeshes();
+}
+
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
 {
     std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> set = {};
@@ -288,10 +299,13 @@ void World::runChunkLoader()
         for (Vector2 chunkLoc: chunkLocs) {
             chunkLoc += playerChunk; // Offset chunk location to player's position
             // Generate the chunk before we lock the mutex to avoid blocking other threads
-            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(m_perlinNoise, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
+            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(*this, m_perlinNoise, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
             m_chunkLock.lock();
             m_chunks.insert_or_assign(chunk->getChunkLoc(), std::move(chunk));
             m_chunkLock.unlock();
+        }
+        for (const auto& [chunkLoc, chunk]: m_chunks) {
+            chunk->tryGenerateMeshes();
         }
     }
 }

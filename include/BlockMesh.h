@@ -5,12 +5,15 @@
 #include "Blocks.h"
 #include "Player.h"
 #include "reputeless/PerlinNoise.hpp"
+#include "World.h"
+
+class World;
 
 class BlockMesh {
     public:
         static constexpr int LENGTH = 16;
         static constexpr int HEIGHT = 256;
-        BlockMesh(const siv::PerlinNoise& perlin, Vector3 offset);
+        BlockMesh(World& world, const siv::PerlinNoise& perlin, Vector3 offset);
         BlockMesh(const BlockMesh&) = delete;            // No copy constructor
         BlockMesh& operator=(const BlockMesh&) = delete; // No copy assignment
         ~BlockMesh();
@@ -25,10 +28,14 @@ class BlockMesh {
         void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
         Block getBlockLocal(Vector3 localCoord) const;
         bool isLocalCoord(Vector3 localCoord) const;
+        void regenerateMeshes();
+        void tryGenerateMeshes();
+        void clearMeshes();
 
     private:
         enum class State {
             UNINITIALIZED,
+            WORLD_GENERATED,
             MESH_GENERATED,
             MESH_UPLOADED
         };
@@ -42,10 +49,10 @@ class BlockMesh {
         BoundingBox m_boundingBox = {0};
 
         Vector3 m_chunkOffset;
+        World& m_world;
         
 
         void generateMeshes();
-        void clearMeshes();
         void addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals);
         void generateModel();
         void generateWorld(const siv::PerlinNoise& perlin);

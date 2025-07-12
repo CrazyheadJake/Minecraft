@@ -10,6 +10,8 @@
 #include "Blocks.h"
 #include <unordered_map>
 
+class BlockMesh;
+
 class World {
     public:
         World(int seed = 0);
@@ -24,6 +26,7 @@ class World {
         RayCollision rayCollision(const Ray &ray, float distance);
         Block getBlockGlobal(Vector3 globalCoord);
         void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
+        void regenerateChunk(Vector2 chunkLoc);
 
     private:
         const siv::PerlinNoise::seed_type m_seed;

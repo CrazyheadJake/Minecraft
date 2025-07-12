@@ -85,7 +85,7 @@ void runGame() {
 
 int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
 
     // Main game

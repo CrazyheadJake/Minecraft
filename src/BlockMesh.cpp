@@ -11,21 +11,19 @@
 #include "Player.h"
 #include "VectorUtils.h"
 
-BlockMesh::BlockMesh(const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset)
+BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset), m_world(world)
 {   
     generateWorld(perlin);
-    generateMeshes();
-    m_state = State::MESH_GENERATED;
+    m_world.regenerateChunk(getChunkLoc() + Vector2{1, 0});
+    m_world.regenerateChunk(getChunkLoc() + Vector2{-1, 0});
+    m_world.regenerateChunk(getChunkLoc() + Vector2{0, 1});
+    m_world.regenerateChunk(getChunkLoc() + Vector2{0, -1});
+
 }
 
 BlockMesh::~BlockMesh()
 {
-    for (auto& mesh: m_meshes) {
-        UnloadMesh(mesh);
-    }
-    free(m_model.meshes);
-    free(m_model.materials);
-    free(m_model.meshMaterial);
+    clearMeshes();
 }
 
 void BlockMesh::drawMesh() const
@@ -75,7 +73,10 @@ void BlockMesh::generateMeshes()
             Vector3 normal = blockNormals[face * 4];
             Vector3 localCoord = getLocalCoord(i);
             Block neighborBlock = getBlockLocal(localCoord + normal);
-            if (neighborBlock != Block::AIR && neighborBlock != Block::UNKNOWN) {
+            if (neighborBlock == Block::UNKNOWN) {
+                neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
+            }
+            if (neighborBlock != Block::AIR || neighborBlock == Block::UNKNOWN) {
                 facesSkipped++;
                 continue; 
             }
@@ -93,17 +94,26 @@ void BlockMesh::generateMeshes()
     if (vertices.size() > 0) {
         addMesh(vertices, indices, texcoords, normals);
     }
+    m_state = State::MESH_GENERATED;
 }
 
 void BlockMesh::clearMeshes()
 {
+    if (m_state == State::UNINITIALIZED || m_state == State::WORLD_GENERATED) {
+        return; // No meshes to clear
+    }
+    m_state = State::WORLD_GENERATED;
     for (auto& mesh: m_meshes) {
         UnloadMesh(mesh);
     }
     free(m_model.meshes);
+    m_meshes.clear();
+    if (m_state == State::MESH_GENERATED)
+        return;
+    m_model.meshCount = 0;
+    m_model.materialCount = 0;
     free(m_model.materials);
     free(m_model.meshMaterial);
-    m_meshes.clear();
 }
 
 void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
@@ -127,6 +137,7 @@ void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
             }
         }
     }
+    m_state = State::WORLD_GENERATED;
 }
 
 bool BlockMesh::isValid()
@@ -175,13 +186,10 @@ bool BlockMesh::isVisible(Player &camera) const
 
 void BlockMesh::tryUploadMeshes()
 {
-    if (m_state == State::UNINITIALIZED) {
+    if (m_state != State::MESH_GENERATED) {
         return;
     }
-    if (m_state == State::MESH_GENERATED) {
-        uploadMeshes();
-        m_state = State::MESH_UPLOADED;
-    }
+    uploadMeshes();
 }
 
 Vector3 BlockMesh::getLocalCoord(int i) const
@@ -197,6 +205,8 @@ void BlockMesh::uploadMeshes()
         UploadMesh(&mesh, true);
     }
     generateModel();
+    m_state = State::MESH_UPLOADED;
+
 }
 
 Vector3 BlockMesh::getGlobalCoord(int i) const        // Not sure if the math in this works if length != width
@@ -231,7 +241,7 @@ Block BlockMesh::getBlockLocal(Vector3 localCoord) const
     if (localCoord.x < 0 || localCoord.x >= LENGTH ||
         localCoord.y < 0 || localCoord.y >= HEIGHT ||
         localCoord.z < 0 || localCoord.z >= LENGTH) {
-        return Block::UNKNOWN; // Out of bounds
+        return Block::UNKNOWN;
     }
     return m_blocks[(int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH];
 }
@@ -241,6 +251,16 @@ bool BlockMesh::isLocalCoord(Vector3 localCoord) const
     return localCoord.x >= 0 && localCoord.x < LENGTH &&
            localCoord.y >= 0 && localCoord.y < HEIGHT &&
            localCoord.z >= 0 && localCoord.z < LENGTH;
+}
+
+void BlockMesh::tryGenerateMeshes()
+{
+    if (m_state == State::UNINITIALIZED) {
+        return;
+    }
+    if (m_state == State::WORLD_GENERATED) {
+        generateMeshes();
+    }
 }
 
 Vector3 BlockMesh::getCorner(int i) const
