@@ -28,9 +28,13 @@ class BlockMesh {
         void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
         Block getBlockLocal(Vector3 localCoord) const;
         bool isLocalCoord(Vector3 localCoord) const;
-        void regenerateMeshes();
         void tryGenerateMeshes();
-        void clearMeshes();
+        void updateBlock(Vector3 localCoord);
+        void requestRegenerate();
+        void generateMeshes();
+        bool shouldRegenerate();
+        void lock();
+        void unlock();
 
     private:
         enum class State {
@@ -39,6 +43,7 @@ class BlockMesh {
             MESH_GENERATED,
             MESH_UPLOADED
         };
+        bool m_regenerate = false;
         static constexpr int SEALEVEL = 64; // Sea level for the world generation
         static constexpr double SCALE = 0.02f; // Scale for the Perlin noise
         static const unsigned short MAX_VERTS = UINT16_MAX;
@@ -50,9 +55,11 @@ class BlockMesh {
 
         Vector3 m_chunkOffset;
         World& m_world;
-        
+        std::mutex m_dataLock;
 
-        void generateMeshes();
+        
+        void clearMeshes();
+        void clearModel();
         void addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals);
         void generateModel();
         void generateWorld(const siv::PerlinNoise& perlin);

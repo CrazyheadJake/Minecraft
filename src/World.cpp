@@ -23,6 +23,11 @@ void World::update(double dt)
     }
 
     updatePlayer(dt);
+    m_chunkLock.lock();
+    for (const auto& [chunkLoc, chunk]: m_chunks) {
+        chunk->tryUploadMeshes();
+    }
+    m_chunkLock.unlock();
 }
 
 void World::load(Texture& tex)
@@ -68,14 +73,9 @@ void World::drawChunks()
 {
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
-        // if (!chunk->isValid()) {
-            chunk->tryUploadMeshes();
-        // }
-        // else {
-            if (chunk->isVisible(m_player)) {
-                chunk->drawMesh();
-            }
-        // }
+        if (chunk->isVisible(m_player)) {
+            chunk->drawMesh();
+        }
     }
     m_chunkLock.unlock();
 }
@@ -94,9 +94,7 @@ void World::updatePlayer(double dt)
         m_player.moveFwd(-dt);
     }
     if (IsKeyDown(KEY_D)) {
-        // EnableCursor();
         m_player.moveRight(dt);
-        // DisableCursor();
     }
     if (IsKeyDown(KEY_A)) {
         m_player.moveRight(-dt);
@@ -114,7 +112,6 @@ void World::updatePlayer(double dt)
     if (collision.hit && collision.distance <= 6.0f) {
         m_player.setTargetBlock(collision.point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            std::cout << "Removing block at: " << collision.point.x << ", " << collision.point.y << ", " << collision.point.z << std::endl;
             setBlockGlobal(collision.point, Block::AIR, true);
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
@@ -199,6 +196,8 @@ RayCollision World::rayCollision(const Ray &ray, float distance)
 
 Block World::getBlockGlobal(Vector3 globalCoord)
 {
+    if (globalCoord.y < 0)
+        return Block::AIR;  // Below world, will force bottom faces to render
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
     auto it = m_chunks.find(chunkLoc);
@@ -225,6 +224,31 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
     m_chunkLock.unlock();
     Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
     chunk->setBlock(localCoord, block, updateMesh);
+    if (updateMesh) {
+        updateBlockGlobal(globalCoord + Vector3{1.0f, 0.0f, 0.0f});
+        updateBlockGlobal(globalCoord + Vector3{-1.0f, 0.0f, 0.0f});
+        updateBlockGlobal(globalCoord + Vector3{0.0f, 1.0f, 0.0f});
+        updateBlockGlobal(globalCoord + Vector3{0.0f, -1.0f, 0.0f});
+        updateBlockGlobal(globalCoord + Vector3{0.0f, 0.0f, 1.0f});
+        updateBlockGlobal(globalCoord + Vector3{0.0f, 0.0f, -1.0f});
+    }
+}
+
+void World::updateBlockGlobal(Vector3 globalCoord)
+{
+    Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return; // Chunk not found
+    }
+    const std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
+    chunk->lock();
+    chunk->updateBlock(localCoord);
+    chunk->unlock();
 }
 
 void World::regenerateChunk(Vector2 chunkLoc)
@@ -239,7 +263,7 @@ void World::regenerateChunk(Vector2 chunkLoc)
     // Reload mesh for existing chunk
     std::unique_ptr<BlockMesh>& chunk = it->second;
     m_chunkLock.unlock();
-    chunk->clearMeshes();
+    chunk->requestRegenerate();
 }
 
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
@@ -305,7 +329,12 @@ void World::runChunkLoader()
             m_chunkLock.unlock();
         }
         for (const auto& [chunkLoc, chunk]: m_chunks) {
+            chunk->lock();
             chunk->tryGenerateMeshes();
+            if (chunk->shouldRegenerate()) {
+                chunk->generateMeshes();
+            }
+            chunk->unlock();
         }
     }
 }

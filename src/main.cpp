@@ -11,7 +11,7 @@
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
 
-// #define DEBUG
+#define DEBUG
 
 void printMatrix(Matrix matrix) {
     std::cout << "[";

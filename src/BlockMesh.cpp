@@ -24,6 +24,7 @@ BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offse
 BlockMesh::~BlockMesh()
 {
     clearMeshes();
+    clearModel();
 }
 
 void BlockMesh::drawMesh() const
@@ -38,11 +39,13 @@ void BlockMesh::drawMesh() const
             }
         }
     #endif
-    // DrawBoundingBox(m_boundingBox, RED);
+    DrawBoundingBox(m_boundingBox, RED);
 }
 
 void BlockMesh::generateMeshes()
 {
+    clearMeshes();
+    
     std::vector<Vector3> vertices;
     std::vector<unsigned short> indices;
     std::vector<Vector2> texcoords;
@@ -95,25 +98,41 @@ void BlockMesh::generateMeshes()
         addMesh(vertices, indices, texcoords, normals);
     }
     m_state = State::MESH_GENERATED;
+    m_regenerate = false;
+}
+
+bool BlockMesh::shouldRegenerate()
+{
+    return m_regenerate;
 }
 
 void BlockMesh::clearMeshes()
 {
-    if (m_state == State::UNINITIALIZED || m_state == State::WORLD_GENERATED) {
-        return; // No meshes to clear
-    }
-    m_state = State::WORLD_GENERATED;
     for (auto& mesh: m_meshes) {
         UnloadMesh(mesh);
     }
-    free(m_model.meshes);
     m_meshes.clear();
-    if (m_state == State::MESH_GENERATED)
-        return;
+    m_state = State::WORLD_GENERATED;
+}
+
+void BlockMesh::clearModel()
+{
+    free(m_model.meshes);
     m_model.meshCount = 0;
     m_model.materialCount = 0;
     free(m_model.materials);
     free(m_model.meshMaterial);
+}
+
+void BlockMesh::updateBlock(Vector3 localCoord)
+{
+    generateMeshes();
+    uploadMeshes();
+}
+
+void BlockMesh::requestRegenerate()
+{
+    m_regenerate = true;
 }
 
 void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
@@ -186,10 +205,9 @@ bool BlockMesh::isVisible(Player &camera) const
 
 void BlockMesh::tryUploadMeshes()
 {
-    if (m_state != State::MESH_GENERATED) {
-        return;
+    if (m_state == State::MESH_GENERATED) {
+        uploadMeshes();
     }
-    uploadMeshes();
 }
 
 Vector3 BlockMesh::getLocalCoord(int i) const
@@ -201,8 +219,12 @@ Vector3 BlockMesh::getLocalCoord(int i) const
 
 void BlockMesh::uploadMeshes()
 {
+    if (IsModelValid(m_model)) {
+        clearModel();
+    }
     for (auto& mesh: m_meshes) {
         UploadMesh(&mesh, true);
+        // free(mesh.vertices);
     }
     generateModel();
     m_state = State::MESH_UPLOADED;
@@ -230,9 +252,7 @@ void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
 {
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
     if (updateMesh) {
-        clearMeshes();
-        generateMeshes();
-        uploadMeshes();
+        updateBlock({(float)x, (float)y, (float)z});
     }
 }
 
@@ -255,9 +275,6 @@ bool BlockMesh::isLocalCoord(Vector3 localCoord) const
 
 void BlockMesh::tryGenerateMeshes()
 {
-    if (m_state == State::UNINITIALIZED) {
-        return;
-    }
     if (m_state == State::WORLD_GENERATED) {
         generateMeshes();
     }
@@ -310,17 +327,29 @@ void BlockMesh::generateModel()
     m_model.transform = MatrixTranslate(0.5, 0.5, 0.5); // Block corners are now integers instead of 0.5
 
     m_model.meshCount = m_meshes.size();
+    if (m_model.meshCount > 1) {
+        std::cout << "Warning: More than one mesh in BlockMesh, this is not expected!" << std::endl;
+    }
     m_model.meshes = (Mesh*)malloc(m_meshes.size() * sizeof(Mesh));
     memcpy(m_model.meshes, m_meshes.data(), m_meshes.size() * sizeof(Mesh));
     
     m_model.materialCount = 1;
     m_model.materials = (Material*)malloc(sizeof(Material));
-    // m_model.materials[0] = LoadMaterialDefault();
     m_model.meshMaterial = (int*)malloc(sizeof(int));
     m_model.meshMaterial[0] = 0;
 
     // I'm afraid of memory leaks here (maybe GPU), but address sanitizer seems to think there are none
     m_model.materials[0] = TextureLoader::s_material;
 
-    m_boundingBox = {getGlobalCoord(0) - Vector3{0.5, 0.5, 0.5}, getGlobalCoord(LENGTH * LENGTH * HEIGHT - 1) + Vector3{0.5, 0.5, 0.5}};
+    m_boundingBox = GetModelBoundingBox(m_model);
+}
+
+void BlockMesh::lock()
+{
+    m_dataLock.lock();
+}
+
+void BlockMesh::unlock()
+{
+    m_dataLock.unlock();
 }

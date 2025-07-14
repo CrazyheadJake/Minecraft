@@ -26,6 +26,7 @@ class World {
         RayCollision rayCollision(const Ray &ray, float distance);
         Block getBlockGlobal(Vector3 globalCoord);
         void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
+        void updateBlockGlobal(Vector3 globalCoord);
         void regenerateChunk(Vector2 chunkLoc);
 
     private:
