@@ -17,6 +17,19 @@ namespace Utils {
         }
     };
 
+    struct Vector3Hash {
+        size_t operator()(const Vector3& v) const {
+            return std::hash<float>()(v.x) ^ (std::hash<float>()(v.y) << 1) ^ (std::hash<float>()(v.z) << 2);
+        }
+    };
+
+    // For use in busMap
+    struct Vector3Equal {
+        bool operator()(const Vector3& a, const Vector3& b) const {
+            return a.x == b.x && a.y == b.y && a.z == b.z;
+        }
+    };
+
     Vector2 floorVector(const Vector2& v, int precision = 1);
     Vector3 floorVector(const Vector3& v, int precision = 1);
     Vector2 roundVector(const Vector2& v, int precision = 1);

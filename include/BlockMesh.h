@@ -6,6 +6,8 @@
 #include "Player.h"
 #include "reputeless/PerlinNoise.hpp"
 #include "World.h"
+#include <unordered_map>
+#include "VectorUtils.h"
 
 class World;
 
@@ -28,18 +30,27 @@ class BlockMesh {
         void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
         Block getBlockLocal(Vector3 localCoord) const;
         bool isLocalCoord(Vector3 localCoord) const;
+        void tryGenerateMeshData();
         void tryGenerateMeshes();
         void updateBlock(Vector3 localCoord);
         void requestRegenerate();
-        void generateMeshes();
+        void generateMeshData();
+        void generateMeshesFromData();
         bool shouldRegenerate();
         void lock();
         void unlock();
 
     private:
+        struct BlockData {
+            std::vector<Vector3> vertices;
+            std::vector<unsigned short> indices;
+            std::vector<Vector2> texcoords;
+            std::vector<Vector3> normals;
+        };
         enum class State {
             UNINITIALIZED,
             WORLD_GENERATED,
+            MESHDATA_GENERATED,
             MESH_GENERATED,
             MESH_UPLOADED
         };
@@ -49,7 +60,8 @@ class BlockMesh {
         static const unsigned short MAX_VERTS = UINT16_MAX;
         State m_state = State::UNINITIALIZED;
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
-        std::vector<Mesh> m_meshes;
+        std::unordered_map<Vector3, BlockData, Utils::Vector3Hash, Utils::Vector3Equal> m_meshData;
+        int m_verticesCount = 0;
         Model m_model = {0};
         BoundingBox m_boundingBox = {0};
 
@@ -57,7 +69,7 @@ class BlockMesh {
         World& m_world;
         std::mutex m_dataLock;
 
-        
+        void clearMeshData();        
         void clearMeshes();
         void clearModel();
         void addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals);

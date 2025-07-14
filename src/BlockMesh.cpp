@@ -23,12 +23,16 @@ BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offse
 
 BlockMesh::~BlockMesh()
 {
+    clearMeshData();
     clearMeshes();
     clearModel();
 }
 
 void BlockMesh::drawMesh() const
 {
+    if (m_state != State::MESH_UPLOADED)
+        return;
+
     // DrawModel is nonfunctional on Windows, so we use DrawMesh instead
     #ifdef __linux__
         DrawModel(m_model, {0, 0, 0}, 1, WHITE);
@@ -42,14 +46,9 @@ void BlockMesh::drawMesh() const
     DrawBoundingBox(m_boundingBox, RED);
 }
 
-void BlockMesh::generateMeshes()
+void BlockMesh::generateMeshData()
 {
-    clearMeshes();
-    
-    std::vector<Vector3> vertices;
-    std::vector<unsigned short> indices;
-    std::vector<Vector2> texcoords;
-    std::vector<Vector3> normals;
+    clearMeshData();
 
     for (int i = 0; i < m_blocks.size(); i++) {
         if (m_blocks[i] == Block::AIR)
@@ -57,19 +56,9 @@ void BlockMesh::generateMeshes()
 
         const Vector3 offset = getGlobalCoord(i);
         const std::vector<Vector3>& blockVertices = Blocks::getVertices(m_blocks[i]);
-        if (vertices.size() + blockVertices.size() > MAX_VERTS) {
-            addMesh(vertices, indices, texcoords, normals);
-            vertices.clear();
-            indices.clear();
-            texcoords.clear();
-            normals.clear();
-            i--;
-            continue;
-        }
         const std::vector<unsigned short>& blockIndices = Blocks::getIndices(m_blocks[i]);
         const std::vector<Vector2>& blockTexcoords = Blocks::getTexcoords(m_blocks[i]);
         const std::vector<Vector3>& blockNormals = Blocks::getNormals(m_blocks[i]);
-        int vertCount = vertices.size();
         int facesSkipped = 0;
         for (int face = 0; face < 6; face++) {
             // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
@@ -83,22 +72,73 @@ void BlockMesh::generateMeshes()
                 facesSkipped++;
                 continue; 
             }
+            auto it = m_meshData.find(localCoord);
+            BlockData* blockData;
+            if (it != m_meshData.end()) {
+                blockData = &it->second;
+            }
+            else {
+                auto insertion = m_meshData.insert_or_assign(localCoord, BlockData {});
+                blockData = &insertion.first->second;
+                }
+
             for (int index = face * 6; index < face * 6 + 6; index++) {
-                indices.push_back(blockIndices[index] + vertCount - facesSkipped * 4);
+                blockData->indices.push_back(blockIndices[index] - facesSkipped * 4);
             }
             for (int vert = face * 4; vert < face * 4 + 4; vert++) {
-                vertices.push_back(Vector3Add(blockVertices[vert], offset));
+                blockData->vertices.push_back(Vector3Add(blockVertices[vert], offset));
                 Direction d = Blocks::getDirection(blockNormals[vert]);
-                texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
-                normals.push_back(blockNormals[vert]);  
+                blockData->texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
+                blockData->normals.push_back(blockNormals[vert]);  
             }
+            m_verticesCount += 4;
         }
     }
-    if (vertices.size() > 0) {
-        addMesh(vertices, indices, texcoords, normals);
-    }
-    m_state = State::MESH_GENERATED;
+    m_state = State::MESHDATA_GENERATED;
     m_regenerate = false;
+}
+
+void BlockMesh::generateMeshesFromData()
+{
+    if (m_model.meshCount > 0)
+        clearMeshes();
+    m_model.meshCount = ceilf((float)m_verticesCount / (MAX_VERTS + 1));
+    if (m_model.meshCount == 0)
+        std::cerr << "0 vertice model?" << std::endl;
+    m_model.meshes = (Mesh*)malloc(m_model.meshCount * sizeof(Mesh));
+    auto it = m_meshData.begin();
+    for (int i = 0; i < m_model.meshCount; i++) {
+        size_t size = m_verticesCount - i * MAX_VERTS > MAX_VERTS ? MAX_VERTS : m_verticesCount - i * MAX_VERTS;
+        size_t indicesSize = size * 1.5f;
+        float* texcoords_ptr = (float*)malloc(size * 2 * sizeof(float));
+        float* vertices_ptr = (float*)malloc(size * 3 * sizeof(float));
+        float* normals_ptr = (float*)malloc(size * 3 * sizeof(float));
+        unsigned short* indices_ptr = (unsigned short*)malloc(indicesSize * sizeof(unsigned short));
+        m_model.meshes[i] = {0};
+        m_model.meshes[i].vertexCount = size;
+        m_model.meshes[i].triangleCount = indicesSize / 3;
+        m_model.meshes[i].vertices = vertices_ptr;
+        m_model.meshes[i].texcoords = texcoords_ptr;
+        m_model.meshes[i].normals = normals_ptr;
+        m_model.meshes[i].indices = indices_ptr;
+        
+        const BlockData* blockData;
+        for (int k = 0; k < size; k += blockData->vertices.size()) {
+            blockData = &m_meshData.at(it->first);
+            memcpy(m_model.meshes[i].vertices + k * 3, blockData->vertices.data(), blockData->vertices.size() * sizeof(Vector3));
+            memcpy(m_model.meshes[i].texcoords + k * 2, blockData->texcoords.data(), blockData->texcoords.size() * sizeof(Vector2));
+            memcpy(m_model.meshes[i].normals + k * 3, blockData->normals.data(), blockData->normals.size() * sizeof(Vector3));
+            for (int index = 0; index < blockData->indices.size(); index++) {
+                m_model.meshes[i].indices[index + (int)(k * 1.5f)] = blockData->indices[index] + k;
+            }
+            // memcpy(m_model.meshes[i].indices + (int)(k * 1.5f), blockData->indices.data(), blockData->indices.size() * sizeof(unsigned short));
+            
+            it++;
+        }
+
+    }
+
+    m_state = State::MESH_GENERATED;
 }
 
 bool BlockMesh::shouldRegenerate()
@@ -106,19 +146,23 @@ bool BlockMesh::shouldRegenerate()
     return m_regenerate;
 }
 
+void BlockMesh::clearMeshData() {
+    m_meshData.clear();
+    m_verticesCount = 0;
+}
+
+
 void BlockMesh::clearMeshes()
 {
-    for (auto& mesh: m_meshes) {
-        UnloadMesh(mesh);
+    for (int mesh = 0; mesh < m_model.meshCount; mesh++) {
+        UnloadMesh(m_model.meshes[mesh]);
     }
-    m_meshes.clear();
-    m_state = State::WORLD_GENERATED;
+    free(m_model.meshes);
+    m_model.meshCount = 0;
 }
 
 void BlockMesh::clearModel()
 {
-    free(m_model.meshes);
-    m_model.meshCount = 0;
     m_model.materialCount = 0;
     free(m_model.materials);
     free(m_model.meshMaterial);
@@ -126,7 +170,8 @@ void BlockMesh::clearModel()
 
 void BlockMesh::updateBlock(Vector3 localCoord)
 {
-    generateMeshes();
+    generateMeshData();
+    generateMeshesFromData();
     uploadMeshes();
 }
 
@@ -219,14 +264,12 @@ Vector3 BlockMesh::getLocalCoord(int i) const
 
 void BlockMesh::uploadMeshes()
 {
-    if (IsModelValid(m_model)) {
-        clearModel();
+    if (m_model.materialCount == 0) {
+        generateModel();
     }
-    for (auto& mesh: m_meshes) {
-        UploadMesh(&mesh, true);
-        // free(mesh.vertices);
+    for (int mesh = 0; mesh < m_model.meshCount; mesh++) {
+        UploadMesh(&m_model.meshes[mesh], true);
     }
-    generateModel();
     m_state = State::MESH_UPLOADED;
 
 }
@@ -252,7 +295,9 @@ void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
 {
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
     if (updateMesh) {
+        lock();
         updateBlock({(float)x, (float)y, (float)z});
+        unlock();
     }
 }
 
@@ -273,10 +318,16 @@ bool BlockMesh::isLocalCoord(Vector3 localCoord) const
            localCoord.z >= 0 && localCoord.z < LENGTH;
 }
 
+void BlockMesh::tryGenerateMeshData() {
+    if (m_state == State::WORLD_GENERATED || m_regenerate) {
+        generateMeshData();
+    }
+}
+
 void BlockMesh::tryGenerateMeshes()
 {
-    if (m_state == State::WORLD_GENERATED) {
-        generateMeshes();
+    if (m_state == State::MESHDATA_GENERATED) {
+        generateMeshesFromData();
     }
 }
 
@@ -295,43 +346,43 @@ Vector3 BlockMesh::getCorner(int i) const
     return {0, 0, 0}; // This line is unreachable, but it prevents a warning about not returning a value
 }
 
-void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
-{
-    // size_t size = std::min(vertices.size(), (size_t)UINT16_MAX);
-    size_t size = vertices.size();
-    float* texcoords_ptr = (float*)malloc(size * 2 * sizeof(float));
-    memcpy(texcoords_ptr, texcoords.data(), size * sizeof(Vector2));
+// void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
+// {
+//     // size_t size = std::min(vertices.size(), (size_t)UINT16_MAX);
+//     size_t size = vertices.size();
+//     float* texcoords_ptr = (float*)malloc(size * 2 * sizeof(float));
+//     memcpy(texcoords_ptr, texcoords.data(), size * sizeof(Vector2));
     
-    float* vertices_ptr = (float*)malloc(vertices.size() * 3 * sizeof(float));
-    memcpy(vertices_ptr, vertices.data(), size * sizeof(Vector3));
+//     float* vertices_ptr = (float*)malloc(vertices.size() * 3 * sizeof(float));
+//     memcpy(vertices_ptr, vertices.data(), size * sizeof(Vector3));
 
-    float* normals_ptr = (float*)malloc(normals.size() * 3 * sizeof(float));
-    memcpy(normals_ptr, normals.data(), size * sizeof(Vector3));
+//     float* normals_ptr = (float*)malloc(normals.size() * 3 * sizeof(float));
+//     memcpy(normals_ptr, normals.data(), size * sizeof(Vector3));
 
-    unsigned short* indices_ptr = (unsigned short*)malloc(indices.size() * sizeof(unsigned short));
-    memcpy(indices_ptr, indices.data(), indices.size() * sizeof(unsigned short));
+//     unsigned short* indices_ptr = (unsigned short*)malloc(indices.size() * sizeof(unsigned short));
+//     memcpy(indices_ptr, indices.data(), indices.size() * sizeof(unsigned short));
 
-    m_meshes.push_back({0});
+//     m_meshes.push_back({0});
 
-    Mesh& mesh = m_meshes.back();
-    mesh.vertexCount = vertices.size();
-    mesh.triangleCount = indices.size() / 3;
-    mesh.vertices = vertices_ptr;
-    mesh.texcoords = texcoords_ptr;
-    mesh.normals = normals_ptr;
-    mesh.indices = indices_ptr;
-}
+//     Mesh& mesh = m_meshes.back();
+//     mesh.vertexCount = vertices.size();
+//     mesh.triangleCount = indices.size() / 3;
+//     mesh.vertices = vertices_ptr;
+//     mesh.texcoords = texcoords_ptr;
+//     mesh.normals = normals_ptr;
+//     mesh.indices = indices_ptr;
+// }
 
 void BlockMesh::generateModel()
 {
     m_model.transform = MatrixTranslate(0.5, 0.5, 0.5); // Block corners are now integers instead of 0.5
 
-    m_model.meshCount = m_meshes.size();
+    // m_model.meshCount = m_meshes.size();
     if (m_model.meshCount > 1) {
         std::cout << "Warning: More than one mesh in BlockMesh, this is not expected!" << std::endl;
     }
-    m_model.meshes = (Mesh*)malloc(m_meshes.size() * sizeof(Mesh));
-    memcpy(m_model.meshes, m_meshes.data(), m_meshes.size() * sizeof(Mesh));
+    // m_model.meshes = (Mesh*)malloc(m_meshes.size() * sizeof(Mesh));
+    // memcpy(m_model.meshes, m_meshes.data(), m_meshes.size() * sizeof(Mesh));
     
     m_model.materialCount = 1;
     m_model.materials = (Material*)malloc(sizeof(Material));

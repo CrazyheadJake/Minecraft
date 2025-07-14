@@ -25,6 +25,7 @@ void World::update(double dt)
     updatePlayer(dt);
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
+        chunk->tryGenerateMeshes();
         chunk->tryUploadMeshes();
     }
     m_chunkLock.unlock();
@@ -47,6 +48,7 @@ void World::load(Texture& tex)
         loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
         for (const auto& [chunkLoc, chunk]: m_chunks) {
             if (!chunk->isValid()) {
+                chunk->tryGenerateMeshes();
                 chunk->tryUploadMeshes();
                 loading = true;
             }
@@ -73,7 +75,7 @@ void World::drawChunks()
 {
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (chunk->isVisible(m_player)) {
+        if (chunk->isVisible(m_player) && chunk->isValid()) {
             chunk->drawMesh();
         }
     }
@@ -330,10 +332,7 @@ void World::runChunkLoader()
         }
         for (const auto& [chunkLoc, chunk]: m_chunks) {
             chunk->lock();
-            chunk->tryGenerateMeshes();
-            if (chunk->shouldRegenerate()) {
-                chunk->generateMeshes();
-            }
+            chunk->tryGenerateMeshData();
             chunk->unlock();
         }
     }

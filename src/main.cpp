@@ -21,9 +21,9 @@ void printMatrix(Matrix matrix) {
     std::cout << matrix.m3 << ", " << matrix.m7 << "," << matrix.m11 << "," << matrix.m15 << "]" << std::endl;
 }
 
-void drawFPS() {
-    std::string fps = std::to_string(GetFPS());
-    DrawText(fps.c_str(), 0, 0, 40, BLACK);
+void drawFPS(float fps) {
+    std::string fpsText = std::to_string((int)round(fps));
+    DrawText(fpsText.c_str(), 0, 0, 40, BLACK);
 }
 
 void runGame() {
@@ -35,6 +35,8 @@ void runGame() {
     world.load(loadingTex);
     UnloadTexture(loadingTex);
     UnloadImage(loadingImg);
+    double fps[300] = {0};
+    int fpsIndex = 0;
 
     double time = GetTime();
     double dt;
@@ -74,7 +76,9 @@ void runGame() {
         EndMode3D();
         // 2D rendering
         world.getPlayer().drawHud();
-        drawFPS();
+        fps[fpsIndex] = 1 / dt;
+        fpsIndex = (fpsIndex + 1) % 300;
+        drawFPS(*std::min_element(fps, fps + 300));
 
 		EndDrawing();
     }
