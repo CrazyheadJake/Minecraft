@@ -19,6 +19,8 @@ BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offse
     m_world.regenerateChunk(getChunkLoc() + Vector2{0, 1});
     m_world.regenerateChunk(getChunkLoc() + Vector2{0, -1});
 
+    m_boundingBox.min = getGlobalCoord(0);
+    m_boundingBox.max = getGlobalCoord(LENGTH * LENGTH * HEIGHT - 1);
 }
 
 BlockMesh::~BlockMesh()

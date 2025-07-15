@@ -69,11 +69,10 @@ void World::drawChunks()
 {
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (!chunk->isVisible(m_player))
-            continue;
         chunk->tryGenerateMeshes();
         chunk->tryUploadMeshes();
-        if (chunk->isValid()) {
+
+        if (chunk->isVisible(m_player) && chunk->isValid()) {
             chunk->drawMesh();
         }
     }
@@ -307,6 +306,7 @@ void World::runChunkLoader()
                 std::unique_ptr<BlockMesh> chunk = std::move(it->second);   
                 it = m_chunks.erase(it);
                 m_chunkLock.unlock();
+                // it++;
             }
             // Chunk is already loaded, so we can remove it from the set of chunk locations
             else {
