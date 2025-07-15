@@ -1,28 +1,31 @@
 #pragma once
 #include "raylib.h"
+#include "raymath.h"
 #include "Vector3d.h"
 #include <cmath>
+#include <mutex>
+#include "VectorUtils.h"
 
 class Player {
     public:
         Player(Vector3 position, float fovy = 90.0f, int perspective = CAMERA_PERSPECTIVE);
-        operator Camera3D() const;
-        void applyMatrix(const Matrix& matrix);
 
+        operator Camera3D() const { return {m_position, m_position + m_fwd, m_up, m_fovy, m_perspective}; }
+
+        void applyMatrix(const Matrix& matrix);
         void changePitch(float dx);
         void changeYaw(float dx);
         void update();
-
         void moveFwd(float dx);
         void moveRight(float dx);
         void moveUp(float dx);
         Vector3 getLocation() const;
-        Vector3 getDirection() const;
-        void setTargetBlock(Vector3 block);
+        Vector3 getDirection() const { return m_fwd; }
+        void setTargetBlock(Vector3 block) { m_targetBlock = Utils::floorVector(block, 1.0f); }
         void drawHud() const;
-
         Vector2 getChunk() const;
     private:
+        mutable std::mutex m_positionMutex;
         Vector3 m_position;
         Vector3 m_fwd;
         Vector3 m_up;
@@ -37,7 +40,4 @@ class Player {
         float m_rotateSpeed = 0.07f; 
         float m_pitch = 0;
         float m_yaw = 0;
-
-
-
 };

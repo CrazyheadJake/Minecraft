@@ -52,7 +52,7 @@ void World::load(Texture& tex)
     std::cout << "World loaded " << m_chunks.size() << " chunks." << std::endl;
 }
 
-bool World::isLoaded()
+bool World::isLoaded() const
 {
     m_chunkLock.lock();
     bool loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
@@ -123,17 +123,17 @@ void World::updatePlayer(double dt)
     }
 }
 
-Player World::getPlayer()
+const Player& World::getPlayer() const
 {
     return m_player;
 }
 
-Vector3 World::getSpawn()
+Vector3 World::getSpawn() const
 {
     return {BlockMesh::LENGTH/2, 66, BlockMesh::LENGTH/2};
 }
 
-RayCollision World::rayCollision(const Ray &ray, float distance)
+RayCollision World::rayCollision(const Ray &ray, float distance) const
 {
     Vector3 start = ray.position;
     int stepX = (ray.direction.x > 0) ? 1 : -1;
@@ -193,7 +193,7 @@ RayCollision World::rayCollision(const Ray &ray, float distance)
     return {false, 0, {0, 0, 0}, {0, 0, 0}};
 }
 
-Block World::getBlockGlobal(Vector3 globalCoord)
+Block World::getBlockGlobal(Vector3 globalCoord) const
 {
     if (globalCoord.y < 0)
         return Block::AIR;  // Below world, will force bottom faces to render

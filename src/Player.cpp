@@ -19,11 +19,6 @@ Player::Player(Vector3 position, float fovy, int perspective) : m_position(posit
     m_right = {0, 0, 1};
 }
 
-Player::operator Camera3D() const
-{
-    return {m_position, m_position + m_fwd, m_up, m_fovy, m_perspective};
-}
-
 void Player::applyMatrix(const Matrix &matrix)
 {
     m_fwd = Vector3Transform(m_fwd, matrix);
@@ -61,6 +56,7 @@ void Player::update()
 
 void Player::moveFwd(float dx)
 {
+    std::lock_guard<std::mutex> lock(m_positionMutex);
     Vector3 flatFwd = m_fwd;
     flatFwd.y = 0;
     flatFwd = Vector3Normalize(flatFwd);
@@ -69,6 +65,7 @@ void Player::moveFwd(float dx)
 
 void Player::moveRight(float dx)
 {
+    std::lock_guard<std::mutex> lock(m_positionMutex);
     Vector3 flatRight = m_right;
     flatRight.y = 0;
     flatRight = Vector3Normalize(flatRight);
@@ -77,17 +74,8 @@ void Player::moveRight(float dx)
 
 Vector3 Player::getLocation() const
 {
+    std::lock_guard<std::mutex> lock(m_positionMutex);
     return m_position;
-}
-
-Vector3 Player::getDirection() const
-{
-    return m_fwd;
-}
-
-void Player::setTargetBlock(Vector3 block)
-{
-    m_targetBlock = Utils::floorVector(block, 1.0f);
 }
 
 void Player::drawHud() const
@@ -101,10 +89,12 @@ void Player::drawHud() const
 
 void Player::moveUp(float dt)
 {
+    std::lock_guard<std::mutex> lock(m_positionMutex);
     m_position += m_up * dt * m_speed;
 }
 
 Vector2 Player::getChunk() const
 {
+    std::lock_guard<std::mutex> lock(m_positionMutex);
     return Utils::floorVector(Vector2{m_position.x, m_position.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
 }

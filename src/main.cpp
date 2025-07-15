@@ -78,7 +78,8 @@ void runGame() {
         world.getPlayer().drawHud();
         fps[fpsIndex] = 1 / dt;
         fpsIndex = (fpsIndex + 1) % 300;
-        drawFPS(*std::min_element(fps, fps + 300));
+        // drawFPS(*std::min_element(fps, fps + 300));
+        drawFPS(GetFPS());
 
 		EndDrawing();
     }

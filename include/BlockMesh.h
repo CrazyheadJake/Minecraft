@@ -15,12 +15,13 @@ class BlockMesh {
     public:
         static constexpr int LENGTH = 16;
         static constexpr int HEIGHT = 256;
+
         BlockMesh(World& world, const siv::PerlinNoise& perlin, Vector3 offset);
         BlockMesh(const BlockMesh&) = delete;            // No copy constructor
         BlockMesh& operator=(const BlockMesh&) = delete; // No copy assignment
         ~BlockMesh();
         void drawMesh() const;
-        bool isValid();
+        bool isValid() const;
         bool isVisible(Player& camera) const;
         void tryUploadMeshes();
         Vector3 getLocalCoord(int i) const;
@@ -37,7 +38,7 @@ class BlockMesh {
         void requestRegenerate();
         void generateMeshData();
         void generateMeshesFromData();
-        bool shouldRegenerate();
+        bool shouldRegenerate() const;
         void lock();
         void unlock();
 
@@ -55,11 +56,13 @@ class BlockMesh {
             MESH_GENERATED,
             MESH_UPLOADED
         };
-        bool m_regenerate = false;
         static constexpr int SEALEVEL = 64; // Sea level for the world generation
         static constexpr double SCALE = 0.02f; // Scale for the Perlin noise
         static const unsigned short MAX_VERTS = UINT16_MAX;
+        
+        bool m_regenerate = false;
         State m_state = State::UNINITIALIZED;
+        
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
         std::unordered_map<int, BlockData> m_meshData;
         int m_verticesCount = 0;
@@ -73,7 +76,6 @@ class BlockMesh {
         void clearMeshData();        
         void clearMeshes();
         void clearModel();
-        void addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals);
         void generateModel();
         void generateWorld(const siv::PerlinNoise& perlin);
         void uploadMeshes();

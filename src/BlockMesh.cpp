@@ -104,7 +104,7 @@ void BlockMesh::generateMeshesFromData()
     m_state = State::MESH_GENERATED;
 }
 
-bool BlockMesh::shouldRegenerate()
+bool BlockMesh::shouldRegenerate() const
 {
     return m_regenerate;
 }
@@ -139,10 +139,9 @@ void BlockMesh::updateBlockData(Vector3 localCoord)
         m_verticesCount -= it->second.vertices.size();
         m_meshData.erase(it);
     }
-    if (m_blocks[i] == Block::AIR) {
-        return;
+    if (m_blocks[i] != Block::AIR) {
+        genBlockData(localCoord);
     }
-    genBlockData(localCoord);
     m_state = State::MESHDATA_GENERATED;
 }
 
@@ -213,7 +212,7 @@ void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
     m_state = State::WORLD_GENERATED;
 }
 
-bool BlockMesh::isValid()
+bool BlockMesh::isValid() const
 {
     return m_state == State::MESH_UPLOADED;
 }
