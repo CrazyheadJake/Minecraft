@@ -32,7 +32,8 @@ class BlockMesh {
         bool isLocalCoord(Vector3 localCoord) const;
         void tryGenerateMeshData();
         void tryGenerateMeshes();
-        void updateBlock(Vector3 localCoord);
+        void updateBlockData(Vector3 localCoord);
+        void genBlockData(Vector3 localCoord);
         void requestRegenerate();
         void generateMeshData();
         void generateMeshesFromData();
@@ -60,7 +61,7 @@ class BlockMesh {
         static const unsigned short MAX_VERTS = UINT16_MAX;
         State m_state = State::UNINITIALIZED;
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
-        std::unordered_map<Vector3, BlockData, Utils::Vector3Hash, Utils::Vector3Equal> m_meshData;
+        std::unordered_map<int, BlockData> m_meshData;
         int m_verticesCount = 0;
         Model m_model = {0};
         BoundingBox m_boundingBox = {0};

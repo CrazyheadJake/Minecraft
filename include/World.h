@@ -34,7 +34,6 @@ class World {
         const siv::PerlinNoise m_perlinNoise;
         float m_renderDistance = 10.5;
         std::unordered_map<Vector2, std::unique_ptr<BlockMesh>, Utils::Vector2Hash, Utils::Vector2Equal> m_chunks;
-        // std::priority
         Player m_player;
         bool m_running = true;
         std::thread m_chunkLoader;

@@ -53,46 +53,7 @@ void BlockMesh::generateMeshData()
     for (int i = 0; i < m_blocks.size(); i++) {
         if (m_blocks[i] == Block::AIR)
             continue;
-
-        const Vector3 offset = getGlobalCoord(i);
-        const std::vector<Vector3>& blockVertices = Blocks::getVertices(m_blocks[i]);
-        const std::vector<unsigned short>& blockIndices = Blocks::getIndices(m_blocks[i]);
-        const std::vector<Vector2>& blockTexcoords = Blocks::getTexcoords(m_blocks[i]);
-        const std::vector<Vector3>& blockNormals = Blocks::getNormals(m_blocks[i]);
-        int facesSkipped = 0;
-        for (int face = 0; face < 6; face++) {
-            // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
-            Vector3 normal = blockNormals[face * 4];
-            Vector3 localCoord = getLocalCoord(i);
-            Block neighborBlock = getBlockLocal(localCoord + normal);
-            if (neighborBlock == Block::UNKNOWN) {
-                neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
-            }
-            if (neighborBlock != Block::AIR || neighborBlock == Block::UNKNOWN) {
-                facesSkipped++;
-                continue; 
-            }
-            auto it = m_meshData.find(localCoord);
-            BlockData* blockData;
-            if (it != m_meshData.end()) {
-                blockData = &it->second;
-            }
-            else {
-                auto insertion = m_meshData.insert_or_assign(localCoord, BlockData {});
-                blockData = &insertion.first->second;
-                }
-
-            for (int index = face * 6; index < face * 6 + 6; index++) {
-                blockData->indices.push_back(blockIndices[index] - facesSkipped * 4);
-            }
-            for (int vert = face * 4; vert < face * 4 + 4; vert++) {
-                blockData->vertices.push_back(Vector3Add(blockVertices[vert], offset));
-                Direction d = Blocks::getDirection(blockNormals[vert]);
-                blockData->texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
-                blockData->normals.push_back(blockNormals[vert]);  
-            }
-            m_verticesCount += 4;
-        }
+        genBlockData(getLocalCoord(i));
     }
     m_state = State::MESHDATA_GENERATED;
     m_regenerate = false;
@@ -100,43 +61,43 @@ void BlockMesh::generateMeshData()
 
 void BlockMesh::generateMeshesFromData()
 {
-    if (m_model.meshCount > 0)
-        clearMeshes();
-    m_model.meshCount = ceilf((float)m_verticesCount / (MAX_VERTS + 1));
-    if (m_model.meshCount == 0)
-        std::cerr << "0 vertice model?" << std::endl;
-    m_model.meshes = (Mesh*)malloc(m_model.meshCount * sizeof(Mesh));
+    int meshCount = ceilf((float)m_verticesCount / (MAX_VERTS + 1));
+    Mesh* meshes = (Mesh*)malloc(meshCount * sizeof(Mesh));
+
     auto it = m_meshData.begin();
-    for (int i = 0; i < m_model.meshCount; i++) {
+    for (int i = 0; i < meshCount; i++) {
         size_t size = m_verticesCount - i * MAX_VERTS > MAX_VERTS ? MAX_VERTS : m_verticesCount - i * MAX_VERTS;
         size_t indicesSize = size * 1.5f;
         float* texcoords_ptr = (float*)malloc(size * 2 * sizeof(float));
         float* vertices_ptr = (float*)malloc(size * 3 * sizeof(float));
         float* normals_ptr = (float*)malloc(size * 3 * sizeof(float));
         unsigned short* indices_ptr = (unsigned short*)malloc(indicesSize * sizeof(unsigned short));
-        m_model.meshes[i] = {0};
-        m_model.meshes[i].vertexCount = size;
-        m_model.meshes[i].triangleCount = indicesSize / 3;
-        m_model.meshes[i].vertices = vertices_ptr;
-        m_model.meshes[i].texcoords = texcoords_ptr;
-        m_model.meshes[i].normals = normals_ptr;
-        m_model.meshes[i].indices = indices_ptr;
+        meshes[i] = {0};
+        meshes[i].vertexCount = size;
+        meshes[i].triangleCount = indicesSize / 3;
+        meshes[i].vertices = vertices_ptr;
+        meshes[i].texcoords = texcoords_ptr;
+        meshes[i].normals = normals_ptr;
+        meshes[i].indices = indices_ptr;
         
         const BlockData* blockData;
         for (int k = 0; k < size; k += blockData->vertices.size()) {
             blockData = &m_meshData.at(it->first);
-            memcpy(m_model.meshes[i].vertices + k * 3, blockData->vertices.data(), blockData->vertices.size() * sizeof(Vector3));
-            memcpy(m_model.meshes[i].texcoords + k * 2, blockData->texcoords.data(), blockData->texcoords.size() * sizeof(Vector2));
-            memcpy(m_model.meshes[i].normals + k * 3, blockData->normals.data(), blockData->normals.size() * sizeof(Vector3));
+            memcpy(meshes[i].vertices + k * 3, blockData->vertices.data(), blockData->vertices.size() * sizeof(Vector3));
+            memcpy(meshes[i].texcoords + k * 2, blockData->texcoords.data(), blockData->texcoords.size() * sizeof(Vector2));
+            memcpy(meshes[i].normals + k * 3, blockData->normals.data(), blockData->normals.size() * sizeof(Vector3));
             for (int index = 0; index < blockData->indices.size(); index++) {
-                m_model.meshes[i].indices[index + (int)(k * 1.5f)] = blockData->indices[index] + k;
+                meshes[i].indices[index + (int)(k * 1.5f)] = blockData->indices[index] + k;
             }
-            // memcpy(m_model.meshes[i].indices + (int)(k * 1.5f), blockData->indices.data(), blockData->indices.size() * sizeof(unsigned short));
             
             it++;
         }
 
     }
+    if (m_model.meshCount > 0)
+        clearMeshes();
+    m_model.meshes = meshes;
+    m_model.meshCount = meshCount;
 
     m_state = State::MESH_GENERATED;
 }
@@ -168,11 +129,57 @@ void BlockMesh::clearModel()
     free(m_model.meshMaterial);
 }
 
-void BlockMesh::updateBlock(Vector3 localCoord)
+void BlockMesh::updateBlockData(Vector3 localCoord)
 {
-    generateMeshData();
-    generateMeshesFromData();
-    uploadMeshes();
+    int i = (int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH;
+    auto it = m_meshData.find(i);
+    if (it != m_meshData.end()) {
+        m_verticesCount -= it->second.vertices.size();
+        m_meshData.erase(it);
+    }
+    if (m_blocks[i] == Block::AIR) {
+        return;
+    }
+    genBlockData(localCoord);
+    m_state = State::MESHDATA_GENERATED;
+}
+
+void BlockMesh::genBlockData(Vector3 localCoord)
+{
+    int i = (int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH;
+    
+    auto insertion = m_meshData.insert_or_assign(i, BlockData {});
+    BlockData& blockData = insertion.first->second;
+
+    const Vector3 offset = localCoord + m_chunkOffset;
+    const std::vector<Vector3>& blockVertices = Blocks::getVertices(m_blocks[i]);
+    const std::vector<unsigned short>& blockIndices = Blocks::getIndices(m_blocks[i]);
+    const std::vector<Vector2>& blockTexcoords = Blocks::getTexcoords(m_blocks[i]);
+    const std::vector<Vector3>& blockNormals = Blocks::getNormals(m_blocks[i]);
+    int facesSkipped = 0;
+    for (int face = 0; face < 6; face++) {
+        // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
+        Vector3 normal = blockNormals[face * 4];
+        Block neighborBlock = getBlockLocal(localCoord + normal);
+        if (neighborBlock == Block::UNKNOWN) {
+            neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
+        }
+        if (neighborBlock != Block::AIR || neighborBlock == Block::UNKNOWN) {
+            facesSkipped++;
+            continue; 
+        }
+
+        for (int index = face * 6; index < face * 6 + 6; index++) {
+            blockData.indices.push_back(blockIndices[index] - facesSkipped * 4);
+        }
+        for (int vert = face * 4; vert < face * 4 + 4; vert++) {
+            blockData.vertices.push_back(Vector3Add(blockVertices[vert], offset));
+            Direction d = Blocks::getDirection(blockNormals[vert]);
+            blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
+            blockData.normals.push_back(blockNormals[vert]);  
+        }
+        m_verticesCount += 4;
+    }
 }
 
 void BlockMesh::requestRegenerate()
@@ -268,7 +275,7 @@ void BlockMesh::uploadMeshes()
         generateModel();
     }
     for (int mesh = 0; mesh < m_model.meshCount; mesh++) {
-        UploadMesh(&m_model.meshes[mesh], true);
+        UploadMesh(&m_model.meshes[mesh], false);
     }
     m_state = State::MESH_UPLOADED;
 
@@ -296,7 +303,7 @@ void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
     m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = block;
     if (updateMesh) {
         lock();
-        updateBlock({(float)x, (float)y, (float)z});
+        updateBlockData({(float)x, (float)y, (float)z});
         unlock();
     }
 }

@@ -23,12 +23,6 @@ void World::update(double dt)
     }
 
     updatePlayer(dt);
-    m_chunkLock.lock();
-    for (const auto& [chunkLoc, chunk]: m_chunks) {
-        chunk->tryGenerateMeshes();
-        chunk->tryUploadMeshes();
-    }
-    m_chunkLock.unlock();
 }
 
 void World::load(Texture& tex)
@@ -75,7 +69,11 @@ void World::drawChunks()
 {
     m_chunkLock.lock();
     for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (chunk->isVisible(m_player) && chunk->isValid()) {
+        if (!chunk->isVisible(m_player))
+            continue;
+        chunk->tryGenerateMeshes();
+        chunk->tryUploadMeshes();
+        if (chunk->isValid()) {
             chunk->drawMesh();
         }
     }
@@ -215,6 +213,7 @@ Block World::getBlockGlobal(Vector3 globalCoord)
 
 void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
 {
+    globalCoord = Utils::floorVector(globalCoord);
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
     auto it = m_chunks.find(chunkLoc);
@@ -249,7 +248,7 @@ void World::updateBlockGlobal(Vector3 globalCoord)
     m_chunkLock.unlock();
     Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
     chunk->lock();
-    chunk->updateBlock(localCoord);
+    chunk->updateBlockData(localCoord);
     chunk->unlock();
 }
 
