@@ -26,6 +26,10 @@ void drawFPS(float fps) {
     DrawText(fpsText.c_str(), 0, 0, 40, BLACK);
 }
 
+bool AltF4Pressed() {
+    return (IsKeyDown(KEY_LEFT_ALT) && IsKeyDown(KEY_F4));
+}
+
 void runGame() {
     // Load the world
     TextureLoader::loadTextures();
@@ -47,7 +51,7 @@ void runGame() {
         DisableCursor();
     #endif
 
-    while (!WindowShouldClose()) {
+    while (!AltF4Pressed()) {
         // Solves alt+tab issue on windows
         #ifdef _WIN32
             if (!IsWindowFocused() && IsWindowFullscreen()) {
@@ -84,7 +88,7 @@ void runGame() {
     }
 
     TextureLoader::unloadTextures();
- 
+    SetWindowState(FLAG_WINDOW_HIDDEN);     // "Close" the window instantly, while still allowing for destructors and other cleanup
 }
 
 int main() {
