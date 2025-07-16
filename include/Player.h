@@ -21,9 +21,11 @@ class Player {
         void moveUp(float dx);
         Vector3 getLocation() const;
         Vector3 getDirection() const { return m_fwd; }
+        float getFov() const { return m_fovy; }
         void setTargetBlock(Vector3 block) { m_targetBlock = Utils::floorVector(block, 1.0f); }
         void drawHud() const;
         Vector2 getChunk() const;
+
     private:
         mutable std::mutex m_positionMutex;
         Vector3 m_position;

@@ -121,7 +121,7 @@ void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
 
 void TextureLoader::setFace(Block block, Direction dir, const std::string& field, const std::unordered_map<std::string, int>& fileIndices, const json& data) {
     float yLocation = BLOCK_SIZE*fileIndices.at(TEXTURES_DIR.string() + (std::string)data.at(field));
-    s_textureLocations[{block, dir}] = {0, yLocation};
+    s_textureLocations[{block.getId(), dir}] = {0, yLocation};
 }
 
 void TextureLoader::unloadTextures()
@@ -131,7 +131,7 @@ void TextureLoader::unloadTextures()
 
 Vector2 TextureLoader::getTexCoord(Block block, Direction d, Vector2 corner)
 {   
-    BlockFace face = {block, d};
+    BlockFace face = {block.getId(), d};
     if (!s_textureLocations.contains(face))
         return {corner.x, corner.y/s_numTextures};
     Vector2 textureLocation = s_textureLocations[face];

@@ -68,12 +68,14 @@ bool World::isLoaded() const
 void World::drawChunks()
 {
     m_chunkLock.lock();
+    int chunksDrawn = 0;
     for (const auto& [chunkLoc, chunk]: m_chunks) {
         chunk->tryGenerateMeshes();
         chunk->tryUploadMeshes();
 
         if (chunk->isVisible(m_player) && chunk->isValid()) {
             chunk->drawMesh();
+            chunksDrawn++;
         }
     }
     m_chunkLock.unlock();
@@ -105,17 +107,18 @@ void World::updatePlayer(double dt)
         m_player.moveUp(-dt);
     }
 
+
     Ray ray = GetScreenToWorldRay({(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, m_player);
     RayCollision collision = rayCollision(ray, 6.0f);
 
     if (collision.hit && collision.distance <= 6.0f) {
         m_player.setTargetBlock(collision.point);
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            setBlockGlobal(collision.point, Block::AIR, true);
+            setBlockGlobal(collision.point, Blocks::AIR, true);
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             collision.point += collision.normal; // Place block on the side of the clicked block
-            setBlockGlobal(collision.point, Block::DIRT, true);
+            setBlockGlobal(collision.point, Blocks::DIRT, true);
         }
     }
     else {
@@ -172,7 +175,7 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
                 lastStep = 2; // Z step
             }
         }
-        if (getBlockGlobal(start) != Block::AIR) {
+        if (getBlockGlobal(start) != Blocks::AIR) {
             // We hit a block, return the collision
             RayCollision collision;
             collision.hit = true;
@@ -196,13 +199,13 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
 Block World::getBlockGlobal(Vector3 globalCoord) const
 {
     if (globalCoord.y < 0)
-        return Block::AIR;  // Below world, will force bottom faces to render
+        return Blocks::AIR;  // Below world, will force bottom faces to render
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
     auto it = m_chunks.find(chunkLoc);
     if (it == m_chunks.end()) {
         m_chunkLock.unlock();
-        return Block::UNKNOWN; // Chunk not found
+        return Blocks::UNKNOWN; // Chunk not found
     }
     const std::unique_ptr<BlockMesh>& chunk = it->second;
     m_chunkLock.unlock();

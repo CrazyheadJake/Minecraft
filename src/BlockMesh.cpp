@@ -1,6 +1,6 @@
 #include "BlockMesh.h"
 #include <vector>
-#include "Blocks.h"
+#include "Block.h"
 #include <string.h>
 #include "raymath.h"
 #include <iostream>
@@ -10,9 +10,10 @@
 #include "TextureLoader.h"
 #include "Player.h"
 #include "VectorUtils.h"
+#include "Direction.h"
 
 BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset), m_world(world)
-{   
+{
     generateWorld(perlin);
     m_world.regenerateChunk(getChunkLoc() + Vector2{1, 0});
     m_world.regenerateChunk(getChunkLoc() + Vector2{-1, 0});
@@ -20,7 +21,7 @@ BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offse
     m_world.regenerateChunk(getChunkLoc() + Vector2{0, -1});
 
     m_boundingBox.min = getGlobalCoord(0);
-    m_boundingBox.max = getGlobalCoord(LENGTH * LENGTH * HEIGHT - 1);
+    m_boundingBox.max = getGlobalCoord(LENGTH * LENGTH * HEIGHT - 1) + Vector3{1.0f, 1.0f, 1.0f};
 }
 
 BlockMesh::~BlockMesh()
@@ -53,7 +54,7 @@ void BlockMesh::generateMeshData()
     clearMeshData();
 
     for (int i = 0; i < m_blocks.size(); i++) {
-        if (m_blocks[i] == Block::AIR)
+        if (m_blocks[i] == Blocks::AIR)
             continue;
         genBlockData(getLocalCoord(i));
     }
@@ -139,7 +140,7 @@ void BlockMesh::updateBlockData(Vector3 localCoord)
         m_verticesCount -= it->second.vertices.size();
         m_meshData.erase(it);
     }
-    if (m_blocks[i] != Block::AIR) {
+    if (m_blocks[i] != Blocks::AIR) {
         genBlockData(localCoord);
     }
     m_state = State::MESHDATA_GENERATED;
@@ -153,19 +154,19 @@ void BlockMesh::genBlockData(Vector3 localCoord)
     BlockData& blockData = insertion.first->second;
 
     const Vector3 offset = localCoord + m_chunkOffset;
-    const std::vector<Vector3>& blockVertices = Blocks::getVertices(m_blocks[i]);
-    const std::vector<unsigned short>& blockIndices = Blocks::getIndices(m_blocks[i]);
-    const std::vector<Vector2>& blockTexcoords = Blocks::getTexcoords(m_blocks[i]);
-    const std::vector<Vector3>& blockNormals = Blocks::getNormals(m_blocks[i]);
+    const std::vector<Vector3>& blockVertices = m_blocks[i].getVertices();
+    const std::vector<unsigned short>& blockIndices = m_blocks[i].getIndices();
+    const std::vector<Vector2>& blockTexcoords = m_blocks[i].getTexcoords();
+    const std::vector<Vector3>& blockNormals = m_blocks[i].getNormals();
     int facesSkipped = 0;
     for (int face = 0; face < 6; face++) {
         // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
         Vector3 normal = blockNormals[face * 4];
         Block neighborBlock = getBlockLocal(localCoord + normal);
-        if (neighborBlock == Block::UNKNOWN) {
+        if (neighborBlock == Blocks::UNKNOWN) {
             neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
         }
-        if (neighborBlock != Block::AIR || neighborBlock == Block::UNKNOWN) {
+        if (neighborBlock != Blocks::AIR || neighborBlock == Blocks::UNKNOWN) {
             facesSkipped++;
             continue; 
         }
@@ -175,7 +176,7 @@ void BlockMesh::genBlockData(Vector3 localCoord)
         }
         for (int vert = face * 4; vert < face * 4 + 4; vert++) {
             blockData.vertices.push_back(Vector3Add(blockVertices[vert], offset));
-            Direction d = Blocks::getDirection(blockNormals[vert]);
+            Direction d = Dir::getDirection(blockNormals[vert]);
             blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
             blockData.normals.push_back(blockNormals[vert]);  
         }
@@ -196,16 +197,16 @@ void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
             int topHeight = SEALEVEL + (int)(noise * 20);
             for (int y = 0; y < HEIGHT; y++) {
                 if (y > topHeight) {
-                    setBlock(x, y, z, Block::AIR);
+                    setBlock(x, y, z, Blocks::AIR);
                 }
                 else if (y == topHeight) {
-                    setBlock(x, y, z, Block::GRASS);
+                    setBlock(x, y, z, Blocks::GRASS);
                 }
                 else if (y > topHeight - 4) {
-                    setBlock(x, y, z, Block::DIRT);
+                    setBlock(x, y, z, Blocks::DIRT);
                 }
                 else
-                    setBlock(x, y, z, Block::STONE);
+                    setBlock(x, y, z, Blocks::STONE);
             }
         }
     }
@@ -219,41 +220,15 @@ bool BlockMesh::isValid() const
 
 bool BlockMesh::isVisible(Player &camera) const
 {
-    bool visible = false;
-    Vector3 coord = getCorner(0);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
+    // float maxAngle = Utils::toRadians(camera.getFov()) / sqrt(2);
+    for (int i = 0; i < 8; i++) {
+        Vector3 corner = getCorner(i);
+        // if (Vector3Angle(corner - camera.getLocation(), camera.getDirection()) < maxAngle)
+        //     return true;
+        if (Vector3DotProduct(corner - camera.getLocation(), camera.getDirection()) > 0)
+            return true;
     }
-    coord = getCorner(1);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(2);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(3);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(4);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(5);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(6);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    coord = getCorner(7);
-    if (Vector3DotProduct(coord - camera.getLocation(), camera.getDirection()) > 0) {
-        visible = true;
-    }
-    
-    return visible;
+    return false;
 }
 
 void BlockMesh::tryUploadMeshes()
@@ -314,7 +289,7 @@ Block BlockMesh::getBlockLocal(Vector3 localCoord) const
     if (localCoord.x < 0 || localCoord.x >= LENGTH ||
         localCoord.y < 0 || localCoord.y >= HEIGHT ||
         localCoord.z < 0 || localCoord.z >= LENGTH) {
-        return Block::UNKNOWN;
+        return Blocks::UNKNOWN;
     }
     return m_blocks[(int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH];
 }
@@ -354,43 +329,13 @@ Vector3 BlockMesh::getCorner(int i) const
     return {0, 0, 0}; // This line is unreachable, but it prevents a warning about not returning a value
 }
 
-// void BlockMesh::addMesh(const std::vector<Vector3>& vertices, const std::vector<unsigned short>& indices, const std::vector<Vector2>& texcoords, const std::vector<Vector3>& normals)
-// {
-//     // size_t size = std::min(vertices.size(), (size_t)UINT16_MAX);
-//     size_t size = vertices.size();
-//     float* texcoords_ptr = (float*)malloc(size * 2 * sizeof(float));
-//     memcpy(texcoords_ptr, texcoords.data(), size * sizeof(Vector2));
-    
-//     float* vertices_ptr = (float*)malloc(vertices.size() * 3 * sizeof(float));
-//     memcpy(vertices_ptr, vertices.data(), size * sizeof(Vector3));
-
-//     float* normals_ptr = (float*)malloc(normals.size() * 3 * sizeof(float));
-//     memcpy(normals_ptr, normals.data(), size * sizeof(Vector3));
-
-//     unsigned short* indices_ptr = (unsigned short*)malloc(indices.size() * sizeof(unsigned short));
-//     memcpy(indices_ptr, indices.data(), indices.size() * sizeof(unsigned short));
-
-//     m_meshes.push_back({0});
-
-//     Mesh& mesh = m_meshes.back();
-//     mesh.vertexCount = vertices.size();
-//     mesh.triangleCount = indices.size() / 3;
-//     mesh.vertices = vertices_ptr;
-//     mesh.texcoords = texcoords_ptr;
-//     mesh.normals = normals_ptr;
-//     mesh.indices = indices_ptr;
-// }
-
 void BlockMesh::generateModel()
 {
     m_model.transform = MatrixTranslate(0.5, 0.5, 0.5); // Block corners are now integers instead of 0.5
 
-    // m_model.meshCount = m_meshes.size();
     if (m_model.meshCount > 1) {
         std::cout << "Warning: More than one mesh in BlockMesh, this is not expected!" << std::endl;
     }
-    // m_model.meshes = (Mesh*)malloc(m_meshes.size() * sizeof(Mesh));
-    // memcpy(m_model.meshes, m_meshes.data(), m_meshes.size() * sizeof(Mesh));
     
     m_model.materialCount = 1;
     m_model.materials = (Material*)malloc(sizeof(Material));

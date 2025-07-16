@@ -7,7 +7,7 @@
 #include "VectorUtils.h"
 #include <thread>
 #include "reputeless/PerlinNoise.hpp"
-#include "Blocks.h"
+#include "Block.h"
 #include <unordered_map>
 #include <atomic>
 

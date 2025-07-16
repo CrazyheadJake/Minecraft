@@ -3,14 +3,7 @@
 #include "VectorUtils.h"
 #include "BlockMesh.h"
 #include <cmath>
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
-float toRadians(float angle) {
-    return angle / 180.0 * M_PI;
-}
+#include "VectorUtils.h"
 
 Player::Player(Vector3 position, float fovy, int perspective) : m_position(position), m_fovy(fovy), m_perspective(perspective) 
 {
@@ -44,8 +37,8 @@ void Player::changeYaw(float dx)
 
 void Player::update()
 {
-    Matrix yaw = MatrixRotate({0, 1, 0}, -toRadians(m_yaw));
-    Matrix pitch = MatrixRotate({0, 0, 1}, -toRadians(m_pitch));
+    Matrix yaw = MatrixRotate({0, 1, 0}, -Utils::toRadians(m_yaw));
+    Matrix pitch = MatrixRotate({0, 0, 1}, -Utils::toRadians(m_pitch));
     // camera.fwd = Vector3RotateByAxisAngle(camera.fwd, camera.up, -dt * dXY.x);
     m_fwd = {1, 0, 0};
     m_right = {0, 0, 1};
@@ -81,10 +74,13 @@ Vector3 Player::getLocation() const
 void Player::drawHud() const
 {   
     BeginMode3D(*this);
-    DrawCubeWires(m_targetBlock + Vector3{0.5f, 0.5f, 0.5f}, 1, 1, 1, BLACK);
+    DrawCubeWires(m_targetBlock + Vector3{0.5f, 0.5f, 0.5f}, 1.003, 1.003, 1.003, BLACK);
     EndMode3D();
-    int cursorSize = 5;
-    DrawRectangle(GetScreenWidth()/2.0f - cursorSize/2, GetScreenHeight()/2.0f - cursorSize/2, cursorSize, cursorSize, RED);
+    int cursorSize = 3;
+    DrawCircle(GetRenderWidth()/2.0f, GetRenderHeight()/2.0f, cursorSize, GRAY);
+    // int hotbarSize = 64;
+    // int hotbarElements = 10;
+    // DrawRectangle(GetRenderWidth()/2.0f - hotbarSize * hotbarElements / 2.0f, GetRenderHeight() - hotbarSize, hotbarSize * hotbarElements, hotbarSize, LIGHTGRAY);
 }
 
 void Player::moveUp(float dt)

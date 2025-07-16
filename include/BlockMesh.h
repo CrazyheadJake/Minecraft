@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "raylib.h"
 #include <array>
-#include "Blocks.h"
+#include "Block.h"
 #include "Player.h"
 #include "reputeless/PerlinNoise.hpp"
 #include "World.h"
@@ -62,7 +62,7 @@ class BlockMesh {
         
         bool m_regenerate = false;
         State m_state = State::UNINITIALIZED;
-        
+
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
         std::unordered_map<int, BlockData> m_meshData;
         int m_verticesCount = 0;

@@ -1,7 +1,7 @@
 #pragma once
 #include "nlohmann/json.hpp"
 #include <unordered_map>
-#include "Blocks.h"
+#include "Block.h"
 #include <functional>
 
 using json = nlohmann::json;
@@ -11,11 +11,9 @@ namespace std {
     template <>
     struct hash<BlockFace> {
         size_t operator()(const BlockFace& k) const {
-            // Hash the enums by casting to their underlying type
-            int block = static_cast<int>(k.block);
             int face = static_cast<int>(k.face);
             // Combine the hashes
-            return block ^ (face << 1);
+            return k.block ^ (face << 1);
         }
     };
 }
