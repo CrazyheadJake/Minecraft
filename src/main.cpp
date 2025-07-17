@@ -51,7 +51,7 @@ void runGame() {
         DisableCursor();
     #endif
 
-    while (!AltF4Pressed()) {
+    while (!AltF4Pressed() && !WindowShouldClose()) {
         // Solves alt+tab issue on windows
         #ifdef _WIN32
             if (!IsWindowFocused() && IsWindowFullscreen()) {
@@ -80,19 +80,23 @@ void runGame() {
         EndMode3D();
         // 2D rendering
         world.getPlayer().drawHud();
+
         fps[fpsIndex] = 1 / dt;
         fpsIndex = (fpsIndex + 1) % 300;
         // drawFPS(*std::min_element(fps, fps + 300));
         drawFPS(GetFPS());
+        
 		EndDrawing();
     }
 
     TextureLoader::unloadTextures();
     SetWindowState(FLAG_WINDOW_HIDDEN);     // "Close" the window instantly, while still allowing for destructors and other cleanup
+    SetWindowState(FLAG_WINDOW_MINIMIZED);
 }
 
 int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
+    SetExitKey(-1);
     // SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
 
