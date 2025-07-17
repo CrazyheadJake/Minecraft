@@ -37,7 +37,7 @@ void TextureLoader::loadTextures()
 }
 
 void TextureLoader::createDirectories() {
-    // Create the gates directory if it doesn't exist
+    // Create the textures and models directory if they don't exist
     if (!fs::exists(BLOCKTEXTURES_PATH) || !fs::is_directory(BLOCKTEXTURES_PATH)) {
         fs::create_directory(BLOCKTEXTURES_PATH);
     }
@@ -47,7 +47,8 @@ void TextureLoader::createDirectories() {
 }
 
 void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
-    Image image = GenImageChecked(BLOCK_SIZE, BLOCK_SIZE*(files.size()+1), 8, 8, PURPLE, BLACK);
+    Image image = {nullptr, BLOCK_SIZE, BLOCK_SIZE * ((int)files.size()+1), 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+    image.data = calloc(BLOCK_SIZE * BLOCK_SIZE * (files.size()+1), 4);
     s_numTextures = 1;  // First texture is always the purple/black checked texture
     for (int i = 0; i < files.size(); i++) {
         s_numTextures++;
@@ -60,9 +61,10 @@ void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
 
     Texture texture = LoadTextureFromImage(image);
     s_material = LoadMaterialDefault();
-    s_material.maps[MATERIAL_MAP_DIFFUSE].texture = texture;
+    SetMaterialTexture(&s_material, MATERIAL_MAP_DIFFUSE, texture);
     UnloadImage(image);
 }
+
 void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
     std::vector<fs::directory_entry> models;
     for (const auto& entry: fs::directory_iterator(BLOCKMODELS_PATH)) {
@@ -84,6 +86,7 @@ void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
             continue;
         const std::string& filename = entry.path().filename().stem().string();
         Block block = Blocks::getBlock(filename);
+        if (block == Blocks::UNKNOWN) continue;
         if (data.contains("default")) {
             setFace(block, Direction::UP, "default", fileIndices, data);
             setFace(block, Direction::DOWN, "default", fileIndices, data);
@@ -98,11 +101,11 @@ void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
             setFace(block, Direction::EAST, "sides", fileIndices, data);
             setFace(block, Direction::WEST, "sides", fileIndices, data);
         }
-        if (data.contains("up")) {
-            setFace(block, Direction::UP, "up", fileIndices, data);
+        if (data.contains("top")) {
+            setFace(block, Direction::UP, "top", fileIndices, data);
         }
-        if (data.contains("down")) {
-            setFace(block, Direction::DOWN, "down", fileIndices, data);
+        if (data.contains("bottom")) {
+            setFace(block, Direction::DOWN, "bottom", fileIndices, data);
         }
         if (data.contains("north")) {
             setFace(block, Direction::NORTH, "north", fileIndices, data);

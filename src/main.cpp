@@ -85,7 +85,6 @@ void runGame() {
         fpsIndex = (fpsIndex + 1) % 300;
         // drawFPS(*std::min_element(fps, fps + 300));
         drawFPS(GetFPS());
-        
 		EndDrawing();
     }
 
