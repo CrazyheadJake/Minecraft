@@ -39,8 +39,8 @@ class BlockMesh {
         void requestRegenerate();
         void generateMeshData();
         void generateMeshesFromData();
-        void updateTransparentMesh(Vector3 location);
-        void updateTransparentMesh(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount);
+        void updateTransparentMeshes(Vector3 location);
+        void generateTransparentMeshes(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount);
         bool shouldRegenerate() const;
         void lock();
         void unlock();
@@ -64,6 +64,9 @@ class BlockMesh {
         static constexpr int SEALEVEL = 64; // Sea level for the world generation
         static constexpr double SCALE = 0.02f; // Scale for the Perlin noise
         static const unsigned short MAX_VERTS = UINT16_MAX;
+        static const int MESH_BUFFER_VERTEX = 0;
+        static const int MESH_BUFFER_TEXCOORD = 1;
+        static const int MESH_BUFFER_NORMAL = 2;
         
         bool m_regenerate = false;
         State m_state = State::UNINITIALIZED;

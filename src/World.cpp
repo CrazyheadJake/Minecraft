@@ -72,17 +72,18 @@ void World::drawChunks()
     for (const auto& [chunkLoc, chunk]: m_chunks) {
         chunk->tryGenerateMeshes();
         chunk->tryUploadMeshes();
+        chunk->updateTransparentMeshes(m_player.getLocation());
 
         if (chunk->isVisible(m_player) && chunk->isValid()) {
             chunk->drawMesh();
             chunksDrawn++;
         }
     }
-    // for (const auto& [chunkLoc, chunk]: m_chunks) {
-    //     if (chunk->isVisible(m_player) && chunk->isValid()) {
-    //         chunk->drawTransparentMesh();
-    //     }
-    // }
+    for (const auto& [chunkLoc, chunk]: m_chunks) {
+        if (chunk->isVisible(m_player) && chunk->isValid()) {
+            chunk->drawTransparentMesh();
+        }
+    }
     m_chunkLock.unlock();
 }
 
