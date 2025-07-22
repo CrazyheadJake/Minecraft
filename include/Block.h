@@ -134,7 +134,7 @@ namespace Blocks {
     inline Block DIRT           = Block("dirt", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block GRASS          = Block("grass", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block STONE          = Block("stone", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
-    inline Block OAK_LOG        = Block("oak_log", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block OAK_LOG        = Block("oak_log", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
     inline Block OAK_PLANKS     = Block("oak_planks", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block OAK_LEAVES     = Block("oak_leaves", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
 

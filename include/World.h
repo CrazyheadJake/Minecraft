@@ -33,7 +33,7 @@ class World {
     private:
         const siv::PerlinNoise::seed_type m_seed;
         const siv::PerlinNoise m_perlinNoise;
-        float m_renderDistance = 10.5;
+        float m_renderDistance = 2.5;
         std::unordered_map<Vector2, std::unique_ptr<BlockMesh>, Utils::Vector2Hash, Utils::Vector2Equal> m_chunks;
         Player m_player;
         std::atomic<bool> m_running = true;

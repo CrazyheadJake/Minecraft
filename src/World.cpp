@@ -78,11 +78,11 @@ void World::drawChunks()
             chunksDrawn++;
         }
     }
-    for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (chunk->isVisible(m_player) && chunk->isValid()) {
-            chunk->drawTransparentMesh();
-        }
-    }
+    // for (const auto& [chunkLoc, chunk]: m_chunks) {
+    //     if (chunk->isVisible(m_player) && chunk->isValid()) {
+    //         chunk->drawTransparentMesh();
+    //     }
+    // }
     m_chunkLock.unlock();
 }
 

@@ -40,7 +40,7 @@ class BlockMesh {
         void generateMeshData();
         void generateMeshesFromData();
         void updateTransparentMesh(Vector3 location);
-        void updateTransparentMesh(Vector3 location, Mesh* meshes, int meshCount);
+        void updateTransparentMesh(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount);
         bool shouldRegenerate() const;
         void lock();
         void unlock();
@@ -52,6 +52,7 @@ class BlockMesh {
             std::vector<Vector2> texcoords;
             std::vector<Vector3> normals;
             bool transparent;
+            Block block;
         };
         enum class State {
             UNINITIALIZED,
@@ -69,8 +70,10 @@ class BlockMesh {
 
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
         std::unordered_map<int, BlockData> m_meshData;
-        std::vector<const BlockData*> m_transparentBlocks;
         int m_verticesCount = 0;
+        std::vector<const BlockData*> m_transparentBlocks;
+        int m_transparentVerticesCount = 0;
+        int m_transparentMeshCount = 0;
         Model m_model = {0};
         BoundingBox m_boundingBox = {0};
 
