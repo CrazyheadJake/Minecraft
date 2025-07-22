@@ -27,6 +27,7 @@ class TextureLoader {
         static void loadTextures();
         static void unloadTextures();
         static Vector2 getTexCoord(Block block, Direction d, Vector2 corner);
+        static const Texture& getSkyBox() { return s_skybox; }
 
     private:
         static const int BLOCK_SIZE = 16;
@@ -35,6 +36,7 @@ class TextureLoader {
         static const fs::path BLOCKMODELS_PATH;
         static const fs::path TEXTURES_DIR;
 
+        static Texture s_skybox;
         static const Texture* s_texture;
         static int s_numTextures;
 

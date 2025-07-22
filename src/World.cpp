@@ -198,7 +198,7 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
 
 Block World::getBlockGlobal(Vector3 globalCoord) const
 {
-    if (globalCoord.y < 0)
+    if (globalCoord.y < 0 || globalCoord.y >= BlockMesh::HEIGHT)
         return Blocks::AIR;  // Below world, will force bottom faces to render
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
@@ -215,6 +215,8 @@ Block World::getBlockGlobal(Vector3 globalCoord) const
 
 void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
 {
+    if (globalCoord.y < 0 || globalCoord.y >= BlockMesh::HEIGHT)
+        return;  // Below/above world
     globalCoord = Utils::floorVector(globalCoord);
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
@@ -239,6 +241,8 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
 
 void World::updateBlockGlobal(Vector3 globalCoord)
 {
+    if (globalCoord.y < 0 || globalCoord.y >= BlockMesh::HEIGHT)
+        return;  // Below/above world
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     m_chunkLock.lock();
     auto it = m_chunks.find(chunkLoc);

@@ -11,6 +11,7 @@ Material TextureLoader::s_material;
 const fs::path TextureLoader::BLOCKTEXTURES_PATH = "assets/textures/blocks/";
 const fs::path TextureLoader::BLOCKMODELS_PATH = "assets/models/blocks/";
 const fs::path TextureLoader::TEXTURES_DIR = "assets/textures/";
+Texture TextureLoader::s_skybox;
 const Texture* TextureLoader::s_texture;
 int TextureLoader::s_numTextures;
 std::unordered_map<BlockFace, Vector2> TextureLoader::s_textureLocations;
@@ -33,6 +34,10 @@ void TextureLoader::loadTextures()
     createAtlas(files);
     createMap(files);
     s_texture = &s_material.maps[0].texture;
+    Image skyboxImg = GenImageGradientLinear(2000, 2000, 1, SKYBLUE, PURPLE);
+    ExportImage(skyboxImg, "skybox.png");
+    s_skybox = LoadTextureFromImage(skyboxImg);
+    UnloadImage(skyboxImg);
     std::cout << "Size: " << files.size() << std::endl;
 }
 
@@ -127,6 +132,7 @@ void TextureLoader::setFace(Block block, Direction dir, const std::string& field
 void TextureLoader::unloadTextures()
 {
     UnloadMaterial(s_material);
+    UnloadTexture(s_skybox);
 }
 
 Vector2 TextureLoader::getTexCoord(Block block, Direction d, Vector2 corner)

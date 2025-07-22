@@ -27,7 +27,7 @@ void drawFPS(float fps) {
 }
 
 bool AltF4Pressed() {
-    return (IsKeyDown(KEY_LEFT_ALT) && IsKeyDown(KEY_F4));
+    return ((IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT)) && IsKeyDown(KEY_F4));
 }
 
 void runGame() {
@@ -72,8 +72,8 @@ void runGame() {
         
         // Drawing to screen
         BeginDrawing();
+        ClearBackground(WHITE);
         BeginMode3D(world.getPlayer());
-		ClearBackground(WHITE);
         // 3D rendering
         world.drawChunks();
 
