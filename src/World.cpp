@@ -78,6 +78,11 @@ void World::drawChunks()
             chunksDrawn++;
         }
     }
+    // for (const auto& [chunkLoc, chunk]: m_chunks) {
+    //     if (chunk->isVisible(m_player) && chunk->isValid()) {
+    //         chunk->drawTransparentMesh();
+    //     }
+    // }
     m_chunkLock.unlock();
 }
 
@@ -107,6 +112,13 @@ void World::updatePlayer(double dt)
         m_player.moveUp(-dt);
     }
 
+    for (int i = 0; i < 9; i++) {
+        if (IsKeyDown(KEY_ONE + i)) {
+            std::cout << "Key " << i + 1 << " pressed" << std::endl;
+            m_player.setHeldBlock(i + 2);
+        }
+    }
+
 
     Ray ray = GetScreenToWorldRay({(float)GetScreenWidth()/2, (float)GetScreenHeight()/2}, m_player);
     RayCollision collision = rayCollision(ray, 6.0f);
@@ -118,7 +130,7 @@ void World::updatePlayer(double dt)
         }
         else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             collision.point += collision.normal; // Place block on the side of the clicked block
-            setBlockGlobal(collision.point, Blocks::DIRT, true);
+            setBlockGlobal(collision.point, m_player.getHeldBlock(), true);
         }
     }
     else {

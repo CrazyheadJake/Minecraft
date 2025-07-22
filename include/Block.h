@@ -10,15 +10,17 @@ class Block {
 public:
     typedef uint8_t BlockId;
     
-    Block(): m_id(0) { }
+    Block() : m_id(0) { }
+    Block(BlockId i) : m_id(i) { m_id = m_id < 0 ? 0 : m_id >= s_names.size() ? s_names.size() - 1 : m_id; }
     Block(std::string name, std::vector<Vector3> vertices, std::vector<unsigned short> indices
-        , std::vector<Vector2> texcoords, std::vector<Vector3> normals);
+        , std::vector<Vector2> texcoords, std::vector<Vector3> normals, bool transparent = false);
     constexpr std::strong_ordering operator<=>(const Block&) const = default;
     const std::string& getName() const { return s_names[m_id]; }
     const std::vector<Vector3>& getVertices() const { return s_vertices[m_id]; }
     const std::vector<unsigned short>& getIndices() const { return s_indices[m_id]; }
     const std::vector<Vector2>& getTexcoords() const { return s_texcoords[m_id]; }
     const std::vector<Vector3>& getNormals() const { return s_normals[m_id]; }
+    bool getTransparent() const { return s_transparencies[m_id]; }
     BlockId getId() const { return m_id; }
 
 private:
@@ -28,6 +30,7 @@ private:
     static std::vector<std::vector<unsigned short>> s_indices;
     static std::vector<std::vector<Vector2>> s_texcoords;
     static std::vector<std::vector<Vector3>> s_normals;
+    static std::vector<bool> s_transparencies;
 };
 
 namespace Blocks {
@@ -126,13 +129,16 @@ namespace Blocks {
         {-1.000f, 0.000f, 0.000f}
     };
 
-    inline Block UNKNOWN = Block("unknown", {}, {}, {}, {});
-    inline Block AIR     = Block("air", {}, {}, {}, {});
-    inline Block DIRT    = Block("dirt", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
-    inline Block GRASS   = Block("grass", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
-    inline Block STONE   = Block("stone", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block UNKNOWN        = Block("unknown", {}, {}, {}, {});
+    inline Block AIR            = Block("air", {}, {}, {}, {});
+    inline Block DIRT           = Block("dirt", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block GRASS          = Block("grass", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block STONE          = Block("stone", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block OAK_LOG        = Block("oak_log", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
+    inline Block OAK_PLANKS     = Block("oak_planks", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block OAK_LEAVES     = Block("oak_leaves", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
 
-    inline const Block& getBlock(const std::string& name) { return s_stringToBlock.at(name); }
+    extern const Block& getBlock(const std::string& name);
 };
 
 struct BlockFace {

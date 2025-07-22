@@ -5,6 +5,7 @@
 #include <cmath>
 #include <mutex>
 #include "VectorUtils.h"
+#include "Block.h"
 
 class Player {
     public:
@@ -23,6 +24,8 @@ class Player {
         Vector3 getDirection() const { return m_fwd; }
         float getFov() const { return m_fovy; }
         void setTargetBlock(Vector3 block) { m_targetBlock = Utils::floorVector(block, 1.0f); }
+        void setHeldBlock(int i);
+        Block getHeldBlock() { return m_selectedBlock; }
         void drawHud() const;
         Vector2 getChunk() const;
 
@@ -34,6 +37,7 @@ class Player {
         Vector3 m_right;
 
         Vector3 m_targetBlock = {-INFINITY, -INFINITY, -INFINITY};
+        Block m_selectedBlock;
 
         float m_fovy;
         int m_perspective;

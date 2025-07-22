@@ -4,12 +4,14 @@
 #include "BlockMesh.h"
 #include <cmath>
 #include "VectorUtils.h"
+#include "Block.h"
 
 Player::Player(Vector3 position, float fovy, int perspective) : m_position(position), m_fovy(fovy), m_perspective(perspective) 
 {
     m_fwd = {1, 0, 0};
     m_up = {0, 1, 0};
     m_right = {0, 0, 1};
+    m_selectedBlock = Blocks::DIRT;
 }
 
 void Player::applyMatrix(const Matrix &matrix)
@@ -69,6 +71,12 @@ Vector3 Player::getLocation() const
 {
     std::lock_guard<std::mutex> lock(m_positionMutex);
     return m_position;
+}
+
+void Player::setHeldBlock(int i)
+{
+    if (i <= 1) return;
+    m_selectedBlock = Block(i);
 }
 
 void Player::drawHud() const
