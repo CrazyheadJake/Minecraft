@@ -39,7 +39,7 @@ void World::load(Texture& tex)
         EndDrawing();
         // Load chunks
         m_chunkLock.lock();
-        loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
+        loading = (World::genSquarePoints(m_renderDistance).size() != m_chunks.size());
         for (const auto& [chunkLoc, chunk]: m_chunks) {
             if (!chunk->isValid()) {
                 chunk->tryGenerateMeshes();
@@ -52,36 +52,27 @@ void World::load(Texture& tex)
     std::cout << "World loaded " << m_chunks.size() << " chunks." << std::endl;
 }
 
-bool World::isLoaded() const
-{
-    m_chunkLock.lock();
-    bool loading = (World::genCirclePoints(m_renderDistance).size() != m_chunks.size());
-    for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (!chunk->isValid()) {
-            loading = true;
-        }
-    }
-    m_chunkLock.unlock();
-    return loading;
-}
-
 void World::drawChunks()
 {
     m_chunkLock.lock();
     int chunksDrawn = 0;
-    for (const auto& [chunkLoc, chunk]: m_chunks) {
-        chunk->tryGenerateMeshes();
-        chunk->tryUploadMeshes();
-        chunk->updateTransparentMeshes(m_player.getLocation());
+    // Drawing non-transparent blocks for each chunk
+    for (const auto& chunkRef: m_sortedChunks) {
+        BlockMesh& chunk = chunkRef.get();
+        chunk.tryGenerateMeshes();
+        chunk.tryUploadMeshes();
+        chunk.updateTransparentMeshes(m_player.getLocation());
 
-        if (chunk->isVisible(m_player) && chunk->isValid()) {
-            chunk->drawMesh();
+        if (chunk.isVisible(m_player) && chunk.isValid()) {
+            chunk.drawMesh();
             chunksDrawn++;
         }
     }
-    for (const auto& [chunkLoc, chunk]: m_chunks) {
-        if (chunk->isVisible(m_player) && chunk->isValid()) {
-            chunk->drawTransparentMesh();
+    // Drawing transparent blocks for each chunk
+    for (const auto& chunkRef: m_sortedChunks) {
+        BlockMesh& chunk = chunkRef.get();
+        if (chunk.isVisible(m_player) && chunk.isValid()) {
+            chunk.drawTransparentMesh();
         }
     }
     m_chunkLock.unlock();
@@ -304,18 +295,33 @@ std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genC
     return set;
 }
 
+std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genSquarePoints(float radius)
+{
+    std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> set = {};
+    for (int i = 0; i <= radius; i++) {
+        for (int k = 0; k <= radius; k++) {
+            set.insert(Vector2{(float)i,(float)k});
+            set.insert(Vector2{(float)i,(float)-k});
+            set.insert(Vector2{(float)-i,(float)k});
+            set.insert(Vector2{(float)-i,(float)-k});
+        }
+    }
+    return set;
+}
+
 void World::runChunkLoader()
 {
     Vector2 playerChunk = {INFINITY, INFINITY}; // Initialize to an invalid location
     std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> chunkLocs;
     while (m_running) {
-        chunkLocs = World::genCirclePoints(m_renderDistance);
+        chunkLocs = World::genSquarePoints(m_renderDistance);
         Vector2 temp = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
         if (playerChunk.x != INFINITY && Vector2Equals(temp, playerChunk)) {
             // No change in player position, skip chunk loading
             continue;
         }
         playerChunk = temp;
+
         // CAREFUL, we are not locking before iterating over m_chunks, so we must ensure no other thread is invalidating iterators
         for (auto it = m_chunks.begin(); it != m_chunks.end(); ) {
             // If chunk is too far away, unload it
@@ -325,6 +331,9 @@ void World::runChunkLoader()
                 // Get the chunk to be unloaded, but don't unload it until after the lock is released
                 std::unique_ptr<BlockMesh> chunk = std::move(it->second);   
                 it = m_chunks.erase(it);
+                std::remove_if(m_sortedChunks.begin(), m_sortedChunks.end(), [&chunk](const std::reference_wrapper<BlockMesh>& ref) {
+                    return &ref.get() == chunk.get();
+                });
                 m_chunkLock.unlock();
                 // it++;
             }
@@ -354,5 +363,21 @@ void World::runChunkLoader()
             chunk->tryGenerateMeshData();
             chunk->unlock();
         }
+        sortChunks(playerChunk);
     }
+}
+
+void World::sortChunks(Vector2 playerChunkLoc)
+{
+        // Sort chunks by distance to the player, needed for transparent block rendering
+        m_chunkLock.lock();
+        m_sortedChunks.clear();
+        m_sortedChunks.reserve(m_chunks.size());
+        for (const auto& [chunkLoc, chunk]: m_chunks) {
+            m_sortedChunks.push_back(std::ref(*chunk));
+        }
+        std::sort(m_sortedChunks.begin(), m_sortedChunks.end(), [playerChunkLoc](const std::reference_wrapper<BlockMesh>& a, const std::reference_wrapper<BlockMesh>& b) {
+            return Vector2LengthSqr(a.get().getChunkLoc() - playerChunkLoc) > Vector2LengthSqr(b.get().getChunkLoc() - playerChunkLoc);
+        });
+        m_chunkLock.unlock();
 }

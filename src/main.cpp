@@ -21,9 +21,9 @@ void printMatrix(Matrix matrix) {
     std::cout << matrix.m3 << ", " << matrix.m7 << "," << matrix.m11 << "," << matrix.m15 << "]" << std::endl;
 }
 
-void drawFPS(float fps) {
-    std::string fpsText = std::to_string((int)round(fps));
-    DrawText(fpsText.c_str(), 0, 0, 40, BLACK);
+void drawFPS(Vector2 loc, const char* text, float fps) {
+    std::string fpsText = text + std::to_string((int)round(fps));
+    DrawText(fpsText.c_str(), loc.x, loc.y, 40, BLACK);
 }
 
 bool AltF4Pressed() {
@@ -83,8 +83,8 @@ void runGame() {
 
         fps[fpsIndex] = 1 / dt;
         fpsIndex = (fpsIndex + 1) % 300;
-        // drawFPS(*std::min_element(fps, fps + 300));
-        drawFPS(GetFPS());
+        drawFPS({0, 0}, "Min FPS: ", *std::min_element(fps, fps + 300));
+        drawFPS({0, 40}, "FPS: ", GetFPS());
 		EndDrawing();
     }
 
@@ -96,7 +96,7 @@ void runGame() {
 int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
     SetExitKey(-1);
-    // SetTraceLogLevel(LOG_WARNING);
+    SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path("../");
 
     // Main game
