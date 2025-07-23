@@ -5,14 +5,14 @@ cmake_minimum_required(VERSION 3.26.3)
 # set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 # set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Release>:Release>")
 
-# add_subdirectory("lib/")
+# Support for MSVC runtime libraries
 if (WIN32)
-    # Set specific value for each config
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
     endif()
 endif()
+
 project(Minecraft)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -36,6 +36,7 @@ file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/
 add_executable(${CMAKE_PROJECT_NAME} ${MY_SOURCES})
 target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
+# Path that will be set as CWD by the application
 target_compile_definitions(${PROJECT_NAME} PUBLIC 
     ROOT_PATH="${CMAKE_SOURCE_DIR}"
 )
@@ -61,7 +62,7 @@ if(WIN32)
             kernel32
             user32
     )
-elseif(UNIX)
+elseif(LINUX)
     # Linux settings
     set(RAYLIB_LIB "${CMAKE_SOURCE_DIR}/libs/libraylib_linux.a")
     target_link_libraries(${CMAKE_PROJECT_NAME}
