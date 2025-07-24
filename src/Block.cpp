@@ -1,4 +1,5 @@
 #include "Block.h"
+#include "TextureLoader.h"
 
 // Define the static member variables for the Block class
 std::vector<std::string> Block::s_names;
@@ -26,3 +27,53 @@ const Block &Blocks::getBlock(const std::string &name)
         return Blocks::UNKNOWN;
     return it->second;
 }
+
+
+Model Block::generateModel()
+{
+    Model model = {0};
+    model.transform = MatrixIdentity();
+    model.meshCount = 1;
+    model.meshes = (Mesh*)malloc(model.meshCount * sizeof(Mesh));
+    model.meshes[0] = generateMesh();
+    model.meshMaterial = (int*)malloc(sizeof(int));
+    model.meshMaterial[0] = 0;
+    model.materialCount = 1;
+    model.materials = (Material*)malloc(model.materialCount * sizeof(Material));
+    model.materials[0] = TextureLoader::s_material;
+    return model;
+}
+
+Mesh Block::generateMesh()
+{
+    Mesh mesh = {0};
+    const std::vector<Vector3>& blockVertices = getVertices();
+    const std::vector<unsigned short>& blockIndices = getIndices();
+    const std::vector<Vector2>& blockTexcoords = getTexcoords();
+    const std::vector<Vector3>& blockNormals = getNormals();
+
+    unsigned short* indicesPtr = (unsigned short*)malloc(blockIndices.size() * sizeof(unsigned short));
+    float* verticesPtr = (float*)malloc(blockVertices.size() * 3 * sizeof(float));
+    float* texcoordsPtr = (float*)malloc(blockTexcoords.size() * 2 * sizeof(float));
+    float* normalsPtr = (float*)malloc(blockNormals.size() * 3 * sizeof(float));
+
+    mesh.vertexCount = blockVertices.size();
+    mesh.triangleCount = blockIndices.size() / 3;
+    mesh.vertices = verticesPtr;
+    mesh.texcoords = texcoordsPtr;
+    mesh.normals = normalsPtr;
+    mesh.indices = indicesPtr;
+
+    memcpy(mesh.vertices, blockVertices.data(), blockVertices.size() * 3 * sizeof(float));
+    memcpy(mesh.normals, blockNormals.data(), blockNormals.size() * 3 * sizeof(float));
+    memcpy(mesh.indices, blockIndices.data(), blockIndices.size() * sizeof(unsigned short));
+
+    for (int vert = 0; vert < blockVertices.size(); vert++) {
+        Direction d = Dir::getDirection(blockNormals[vert]);
+        Vector2 texcoord = TextureLoader::getTexCoord(*this, d, blockTexcoords[vert]);
+        texcoordsPtr[2*vert] = texcoord.x;
+        texcoordsPtr[2*vert+1] = texcoord.y;
+    }
+    return mesh;
+}
+

@@ -1,18 +1,31 @@
 #include "World.h"
 #include "raymath.h"
+#include "rlgl.h"
 #include <unordered_set>
 #include "VectorUtils.h"
 #include <iostream>
 #include <thread>
+#include "TextureLoader.h"
 
 World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
+    m_skybox = Blocks::SKYBOX.generateModel();
+    for (int i = 0; i < m_skybox.meshes->vertexCount; i++) {
+        m_skybox.meshes->vertices[3*i] *= 1000;
+        m_skybox.meshes->vertices[3*i+1] *= 1000;
+        m_skybox.meshes->vertices[3*i+2] *= 1000;
+    }
+    UploadMesh(&m_skybox.meshes[0], false);
 }
 
 World::~World() {
     m_running = false;
     if (m_chunkLoader.joinable())
         m_chunkLoader.join();
+    UnloadMesh(m_skybox.meshes[0]);
+    free(m_skybox.meshes);
+    free(m_skybox.materials);
+    free(m_skybox.meshMaterial);
 }
 
 void World::update(double dt)
@@ -78,6 +91,16 @@ void World::drawChunks()
     m_chunkLock.unlock();
 }
 
+void World::drawSkybox()
+{   
+    Vector3 pos = m_player.getLocation();
+    rlDisableBackfaceCulling();  // This will render both sides of the skybox so it appears to the player
+
+    DrawMesh(m_skybox.meshes[0], m_skybox.materials[0], MatrixTranslate(pos.x, pos.y, pos.z));
+    rlEnableBackfaceCulling();  // Restore culling
+
+}
+
 void World::updatePlayer(double dt)
 {
     Vector2 dXY = GetMouseDelta();
@@ -107,7 +130,7 @@ void World::updatePlayer(double dt)
     for (int i = 0; i < 9; i++) {
         if (IsKeyDown(KEY_ONE + i)) {
             std::cout << "Key " << i + 1 << " pressed" << std::endl;
-            m_player.setHeldBlock(i + 2);
+            m_player.setHeldBlock(i + 3);
         }
     }
 

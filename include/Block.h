@@ -23,6 +23,9 @@ public:
     bool getTransparent() const { return s_transparencies[m_id]; }
     BlockId getId() const { return m_id; }
 
+    Model generateModel();
+    Mesh generateMesh();
+
 private:
     BlockId m_id;
     static std::vector<std::string> s_names;
@@ -131,6 +134,7 @@ namespace Blocks {
 
     inline Block UNKNOWN        = Block("unknown", {}, {}, {}, {});
     inline Block AIR            = Block("air", {}, {}, {}, {});
+    inline Block SKYBOX         = Block("skybox", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block DIRT           = Block("dirt", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block GRASS          = Block("grass", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block STONE          = Block("stone", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);

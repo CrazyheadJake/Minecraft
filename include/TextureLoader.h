@@ -22,12 +22,18 @@ namespace fs = std::filesystem;
 
 class TextureLoader {
     public:
+        static const int MESH_BUFFER_VERTEX = 0;
+        static const int MESH_BUFFER_TEXCOORD = 1;
+        static const int MESH_BUFFER_NORMAL = 2;
+
         static Material s_material;
         TextureLoader() = delete;
         static void loadTextures();
         static void unloadTextures();
         static Vector2 getTexCoord(Block block, Direction d, Vector2 corner);
-        static const Texture& getSkyBox() { return s_skybox; }
+        static const Material& getSkyBox() { return s_skybox; }
+        static Material copyMaterial(const Material& material);
+        static Material newMaterial();
 
     private:
         static const int BLOCK_SIZE = 16;
@@ -36,7 +42,7 @@ class TextureLoader {
         static const fs::path BLOCKMODELS_PATH;
         static const fs::path TEXTURES_DIR;
 
-        static Texture s_skybox;
+        static Material s_skybox;
         static const Texture* s_texture;
         static int s_numTextures;
 

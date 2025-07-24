@@ -20,6 +20,7 @@ class World {
         void update(double dt);
         void load(Texture& tex);
         void drawChunks();
+        void drawSkybox();
         void updatePlayer(double dt); 
         const Player& getPlayer() const;
         Vector3 getSpawn() const;
@@ -32,7 +33,7 @@ class World {
     private:
         const siv::PerlinNoise::seed_type m_seed;
         const siv::PerlinNoise m_perlinNoise;
-        float m_renderDistance = 12.5;
+        float m_renderDistance = 6;
 
         std::unordered_map<Vector2, std::unique_ptr<BlockMesh>, Utils::Vector2Hash, Utils::Vector2Equal> m_chunks;
         std::vector<std::reference_wrapper<BlockMesh>> m_sortedChunks;
@@ -41,6 +42,7 @@ class World {
         std::thread m_chunkLoader;
 
         Player m_player;
+        Model m_skybox;
 
         static std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> genCirclePoints(float radius);
         static std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> genSquarePoints(float radius);

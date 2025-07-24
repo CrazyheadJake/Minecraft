@@ -75,7 +75,7 @@ Vector3 Player::getLocation() const
 
 void Player::setHeldBlock(int i)
 {
-    if (i <= 1) return;
+    if (i <= 2) return;
     m_selectedBlock = Block(i);
 }
 

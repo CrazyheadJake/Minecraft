@@ -11,7 +11,7 @@ Material TextureLoader::s_material;
 const fs::path TextureLoader::BLOCKTEXTURES_PATH = "assets/textures/blocks/";
 const fs::path TextureLoader::BLOCKMODELS_PATH = "assets/models/blocks/";
 const fs::path TextureLoader::TEXTURES_DIR = "assets/textures/";
-Texture TextureLoader::s_skybox;
+Material TextureLoader::s_skybox;
 const Texture* TextureLoader::s_texture;
 int TextureLoader::s_numTextures;
 std::unordered_map<BlockFace, Vector2> TextureLoader::s_textureLocations;
@@ -34,10 +34,12 @@ void TextureLoader::loadTextures()
     createAtlas(files);
     createMap(files);
     s_texture = &s_material.maps[0].texture;
-    Image skyboxImg = GenImageGradientLinear(2000, 2000, 1, SKYBLUE, PURPLE);
+    Image skyboxImg = GenImageGradientLinear(64, 64, 1, SKYBLUE, PURPLE);
     ExportImage(skyboxImg, "skybox.png");
-    s_skybox = LoadTextureFromImage(skyboxImg);
-    UnloadImage(skyboxImg);
+    // Texture skyboxTex = LoadTextureFromImage(skyboxImg);
+    // s_skybox = LoadMaterialDefault();
+    // SetMaterialTexture(&s_skybox, MATERIAL_MAP_DIFFUSE, skyboxTex);
+    // UnloadImage(skyboxImg);
     std::cout << "Size: " << files.size() << std::endl;
 }
 
@@ -62,7 +64,7 @@ void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
         ImageDraw(&image, temp, {0, 0, BLOCK_SIZE, BLOCK_SIZE}, {0, (float)BLOCK_SIZE*(i+1), BLOCK_SIZE, BLOCK_SIZE}, WHITE);
         UnloadImage(temp);
     }
-    ExportImage(image, "temp.png");
+    ExportImage(image, "atlas.png");
 
     Texture texture = LoadTextureFromImage(image);
     s_material = LoadMaterialDefault();
@@ -135,7 +137,7 @@ void TextureLoader::setFace(Block block, Direction dir, const std::string& field
 void TextureLoader::unloadTextures()
 {
     UnloadMaterial(s_material);
-    UnloadTexture(s_skybox);
+    UnloadMaterial(s_skybox);
 }
 
 Vector2 TextureLoader::getTexCoord(Block block, Direction d, Vector2 corner)
@@ -150,4 +152,17 @@ Vector2 TextureLoader::getTexCoord(Block block, Direction d, Vector2 corner)
     textureLocation.y /= s_texture->height;
     textureLocation.x /= s_texture->width;
     return textureLocation;
+}
+
+Material TextureLoader::copyMaterial(const Material &material)
+{
+    Material copy = material;
+    copy.maps = (MaterialMap*)malloc(sizeof(MaterialMap));
+    *copy.maps = *material.maps;
+    return copy;
+}
+
+Material TextureLoader::newMaterial()
+{
+    return copyMaterial(LoadMaterialDefault());
 }

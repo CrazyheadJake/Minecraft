@@ -75,6 +75,7 @@ void runGame() {
         ClearBackground(WHITE);
         BeginMode3D(world.getPlayer());
         // 3D rendering
+        world.drawSkybox();
         world.drawChunks();
 
         EndMode3D();

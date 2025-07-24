@@ -139,9 +139,9 @@ void BlockMesh::updateTransparentMeshes(Vector3 location)
     generateTransparentMeshes(location, meshes.data(), m_model.meshCount, m_transparentMeshCount);
     for (int i = 0; i < m_transparentMeshCount; i++) {
         Mesh& mesh = m_model.meshes[i + m_model.meshCount - m_transparentMeshCount];
-        UpdateMeshBuffer(mesh, MESH_BUFFER_VERTEX, meshes[i].vertices, meshes[i].vertexCount * sizeof(Vector3), 0);
-        UpdateMeshBuffer(mesh, MESH_BUFFER_TEXCOORD, meshes[i].texcoords, meshes[i].vertexCount * sizeof(Vector2), 0);
-        UpdateMeshBuffer(mesh, MESH_BUFFER_NORMAL, meshes[i].normals, meshes[i].vertexCount * sizeof(Vector3), 0);
+        UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_VERTEX, meshes[i].vertices, meshes[i].vertexCount * sizeof(Vector3), 0);
+        UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_TEXCOORD, meshes[i].texcoords, meshes[i].vertexCount * sizeof(Vector2), 0);
+        UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_NORMAL, meshes[i].normals, meshes[i].vertexCount * sizeof(Vector3), 0);
         memcpy(mesh.vertices, meshes[i].vertices, meshes[i].vertexCount * sizeof(Vector3));
         memcpy(mesh.texcoords, meshes[i].texcoords, meshes[i].vertexCount * sizeof(Vector2));
         memcpy(mesh.normals, meshes[i].normals, meshes[i].vertexCount * sizeof(Vector3));
