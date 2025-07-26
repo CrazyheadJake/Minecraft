@@ -21,6 +21,7 @@ public:
     const std::vector<Vector2>& getTexcoords() const { return s_texcoords[m_id]; }
     const std::vector<Vector3>& getNormals() const { return s_normals[m_id]; }
     bool getTransparent() const { return s_transparencies[m_id]; }
+    // bool getTranslucent() const { return s_translucencies[m_id]; }
     BlockId getId() const { return m_id; }
 
     Model generateModel();
@@ -34,6 +35,7 @@ private:
     static std::vector<std::vector<Vector2>> s_texcoords;
     static std::vector<std::vector<Vector3>> s_normals;
     static std::vector<bool> s_transparencies;
+    // static std::vector<bool> s_translucencies;
 };
 
 namespace Blocks {
@@ -132,15 +134,82 @@ namespace Blocks {
         {-1.000f, 0.000f, 0.000f}
     };
 
+    std::vector<Vector3> const FOLIAGE_VERTICES = {
+        {0.500f, -0.500f, -0.500f},
+        {0.500f, 0.500f, -0.500f},
+        {-0.500f, 0.500f, 0.500f},
+        {-0.500f, -0.500f, 0.500f},
+        {0.500f, -0.500f, -0.500f},
+        {0.500f, 0.500f, -0.500f},
+        {-0.500f, 0.500f, 0.500f},
+        {-0.500f, -0.500f, 0.500f},
+        {0.500f, -0.500f, 0.500f},
+        {0.500f, 0.500f, 0.500f},
+        {-0.500f, 0.500f, -0.500f},
+        {-0.500f, -0.500f, -0.500f},
+        {0.500f, -0.500f, 0.500f},
+        {0.500f, 0.500f, 0.500f},
+        {-0.500f, 0.500f, -0.500f},
+        {-0.500f, -0.500f, -0.500f},
+    };
+    std::vector<unsigned short> const FOLIAGE_INDICES = {
+        0, 1, 2, 
+        0, 2, 3, 
+        4, 6, 5, 
+        4, 7, 6, 
+        8, 9, 10, 
+        8, 10, 11, 
+        12, 14, 13,
+        12, 15, 14, 
+    };
+    std::vector<Vector2> const FOLIAGE_TEXCOORDS = {
+        {1.000f, 0.000f}, 
+        {1.000f, 1.000f}, 
+        {0.000f, 1.000f}, 
+        {0.000f, 0.000f}, 
+        {1.000f, 0.000f}, 
+        {1.000f, 1.000f}, 
+        {0.000f, 1.000f}, 
+        {0.000f, 0.000f}, 
+        {1.000f, 0.000f}, 
+        {1.000f, 1.000f}, 
+        {0.000f, 1.000f}, 
+        {0.000f, 0.000f}, 
+        {1.000f, 0.000f}, 
+        {1.000f, 1.000f}, 
+        {0.000f, 1.000f}, 
+        {0.000f, 0.000f},
+    };
+    std::vector<Vector3> const FOLIAGE_NORMALS = {
+        {sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, -sqrt(2)/2},
+        {sqrt(2)/2, 0.000f, -sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, -sqrt(2)/2}, 
+        {sqrt(2)/2, 0.000f, -sqrt(2)/2},
+        {-sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, -sqrt(2)/2},
+        {-sqrt(2)/2, 0.000f, -sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, -sqrt(2)/2}, 
+        {-sqrt(2)/2, 0.000f, -sqrt(2)/2}, 
+    };
+
+
     inline Block UNKNOWN        = Block("unknown", {}, {}, {}, {});
     inline Block AIR            = Block("air", {}, {}, {}, {});
     inline Block SKYBOX         = Block("skybox", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block DIRT           = Block("dirt", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
-    inline Block GRASS          = Block("grass", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
+    inline Block GRASS_BLOCK    = Block("grass_block", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block STONE          = Block("stone", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block OAK_LOG        = Block("oak_log", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block OAK_PLANKS     = Block("oak_planks", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block OAK_LEAVES     = Block("oak_leaves", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
+    inline Block GRASS          = Block("grass", FOLIAGE_VERTICES, FOLIAGE_INDICES, FOLIAGE_TEXCOORDS, FOLIAGE_NORMALS, true);
 
     extern const Block& getBlock(const std::string& name);
 };

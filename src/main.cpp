@@ -11,7 +11,7 @@
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
 
-// #define DEBUG
+#define DEBUG
 
 void printMatrix(Matrix matrix) {
     std::cout << "[";
@@ -75,6 +75,9 @@ void runGame() {
         ClearBackground(WHITE);
         BeginMode3D(world.getPlayer());
         // 3D rendering
+        int timeLoc = GetShaderLocation(TextureLoader::s_material.shader, "time");
+        float shaderTime = time / 10.0f;
+        SetShaderValue(TextureLoader::s_material.shader, timeLoc, &shaderTime, SHADER_UNIFORM_FLOAT);
         world.drawSkybox();
         world.drawChunks();
 

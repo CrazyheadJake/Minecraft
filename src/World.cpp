@@ -74,7 +74,7 @@ void World::drawChunks()
         BlockMesh& chunk = chunkRef.get();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
-        chunk.updateTransparentMeshes(m_player.getLocation());
+        // chunk.updateTransparentMeshes(m_player.getLocation());
 
         if (chunk.isVisible(m_player) && chunk.isValid()) {
             chunk.drawMesh();
@@ -354,7 +354,7 @@ void World::runChunkLoader()
                 // Get the chunk to be unloaded, but don't unload it until after the lock is released
                 std::unique_ptr<BlockMesh> chunk = std::move(it->second);   
                 it = m_chunks.erase(it);
-                std::remove_if(m_sortedChunks.begin(), m_sortedChunks.end(), [&chunk](const std::reference_wrapper<BlockMesh>& ref) {
+                auto removed = std::remove_if(m_sortedChunks.begin(), m_sortedChunks.end(), [&chunk](const std::reference_wrapper<BlockMesh>& ref) {
                     return &ref.get() == chunk.get();
                 });
                 m_chunkLock.unlock();

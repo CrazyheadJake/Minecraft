@@ -34,6 +34,7 @@ void TextureLoader::loadTextures()
     createAtlas(files);
     createMap(files);
     s_texture = &s_material.maps[0].texture;
+    s_material.shader = LoadShader("assets/shaders/basic.vs", "assets/shaders/basic.fs");
     Image skyboxImg = GenImageGradientLinear(64, 64, 1, SKYBLUE, PURPLE);
     ExportImage(skyboxImg, "skybox.png");
     // Texture skyboxTex = LoadTextureFromImage(skyboxImg);

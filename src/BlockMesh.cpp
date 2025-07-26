@@ -100,10 +100,10 @@ void BlockMesh::generateMeshesFromData()
         int k = 0;
         for (; it != m_meshData.end(); it++) {
             blockData = &it->second;
-            if (blockData->transparent){
-                m_transparentBlocks.push_back(blockData);
-                continue;
-            }
+            // if (blockData->transparent){
+            //     m_transparentBlocks.push_back(blockData);
+            //     continue;
+            // }
             if (k + blockData->vertices.size() > size)
                 break;
             memcpy(meshes[i].vertices + k * 3, blockData->vertices.data(), blockData->vertices.size() * sizeof(Vector3));
@@ -252,32 +252,33 @@ void BlockMesh::genBlockData(Vector3 localCoord)
     const std::vector<Vector3>& blockNormals = m_blocks[i].getNormals();
 
     std::pair<std::unordered_map<int, BlockMesh::BlockData>::iterator, bool> insertion;
-    if (m_blocks[i].getTransparent()) {
-        insertion = m_meshData.insert_or_assign(i, BlockData {});
-        BlockData& blockData = insertion.first->second;
-        blockData.transparent = true;
-        blockData.block = m_blocks[i];
-        for (int index = 0; index < blockVertices.size() * 1.5f; index++) {
-            blockData.indices.push_back(blockIndices[index]);
-        }
-        for (int vert = 0; vert < blockVertices.size(); vert++) {
-            blockData.vertices.push_back(blockVertices[vert] + offset);
-            Direction d = Dir::getDirection(blockNormals[vert]);
-            blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
-            blockData.normals.push_back(blockNormals[vert]);
-        }
-        m_transparentVerticesCount += blockVertices.size();
-        return;
-    }
+    // if (m_blocks[i].getTransparent()) {
+    //     insertion = m_meshData.insert_or_assign(i, BlockData {});
+    //     BlockData& blockData = insertion.first->second;
+    //     blockData.transparent = true;
+    //     blockData.block = m_blocks[i];
+    //     for (int index = 0; index < blockVertices.size() * 1.5f; index++) {
+    //         blockData.indices.push_back(blockIndices[index]);
+    //     }
+    //     for (int vert = 0; vert < blockVertices.size(); vert++) {
+    //         blockData.vertices.push_back(blockVertices[vert] + offset);
+    //         Direction d = Dir::getDirection(blockNormals[vert]);
+    //         blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
+    //         blockData.normals.push_back(blockNormals[vert]);
+    //     }
+    //     m_transparentVerticesCount += blockVertices.size();
+    //     return;
+    // }
     int facesSkipped = 0;
     BlockData* blockData;
-    for (int face = 0; face < 6; face++) {
-        // Skip this face if the neighbor block is not air, should really be looking for "transparent" blocks, but for now this is fine
+    for (int face = 0; face < m_blocks[i].getVertices().size() / 4; face++) {
         Vector3 normal = blockNormals[face * 4];
         Block neighborBlock = getBlockLocal(localCoord + normal);
+        // If neighbor block is in a different chunk, check the neighboring chunks
         if (neighborBlock == Blocks::UNKNOWN) {
             neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
         }
+        // If neighbor block is transparent, force the rendering of the face
         if (neighborBlock.getTransparent())
             neighborBlock = Blocks::AIR;
         if (neighborBlock != Blocks::AIR || neighborBlock == Blocks::UNKNOWN) {
@@ -287,7 +288,7 @@ void BlockMesh::genBlockData(Vector3 localCoord)
         if (m_meshData.find(i) == m_meshData.end()) {
             insertion = m_meshData.insert_or_assign(i, BlockData {});
             blockData = &insertion.first->second;
-            blockData->transparent = false;
+            blockData->transparent = m_blocks[i].getTransparent();
             blockData->block = m_blocks[i];
         }
         for (int index = face * 6; index < face * 6 + 6; index++) {
@@ -319,7 +320,7 @@ void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
                     setBlock(x, y, z, Blocks::AIR);
                 }
                 else if (y == topHeight) {
-                    setBlock(x, y, z, Blocks::GRASS);
+                    setBlock(x, y, z, Blocks::GRASS_BLOCK);
                 }
                 else if (y > topHeight - 4) {
                     setBlock(x, y, z, Blocks::DIRT);
