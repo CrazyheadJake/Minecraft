@@ -36,7 +36,7 @@ void BlockMesh::drawMesh() const
     if (m_state != State::MESH_UPLOADED)
         return;
 
-    for (int i = 0; i < m_model.meshCount - m_transparentMeshCount; i++) {
+    for (int i = 0; i < m_model.meshCount - m_translucentMeshCount; i++) {
         if (m_model.meshes[i].vertexCount > 0) {
             DrawMesh(m_model.meshes[i], m_model.materials[0], m_model.transform);
         }
@@ -49,7 +49,7 @@ void BlockMesh::drawTransparentMesh() const
 {
     if (m_state != State::MESH_UPLOADED)
         return;
-    for (int i = m_model.meshCount - m_transparentMeshCount; i < m_model.meshCount; i++) {
+    for (int i = m_model.meshCount - m_translucentMeshCount; i < m_model.meshCount; i++) {
         if (m_model.meshes[i].vertexCount == 0)
             return;
         BeginBlendMode(BLEND_ALPHA);
@@ -74,11 +74,11 @@ void BlockMesh::generateMeshData()
 
 void BlockMesh::generateMeshesFromData()
 {
-    int transparentMeshCount = ceilf((float)m_transparentVerticesCount / (MAX_VERTS + 1));
+    int transparentMeshCount = ceilf((float)m_translucentVerticesCount / (MAX_VERTS + 1));
     int meshCount = ceilf((float)m_verticesCount / (MAX_VERTS + 1)) + transparentMeshCount;
     
     Mesh* meshes = (Mesh*)malloc(meshCount * sizeof(Mesh));
-    m_transparentBlocks.clear();
+    m_translucentBlocks.clear();
     
     size_t verticesRemaining = m_verticesCount;
     auto it = m_meshData.begin();
@@ -100,10 +100,10 @@ void BlockMesh::generateMeshesFromData()
         int k = 0;
         for (; it != m_meshData.end(); it++) {
             blockData = &it->second;
-            // if (blockData->transparent){
-            //     m_transparentBlocks.push_back(blockData);
-            //     continue;
-            // }
+            if (blockData->translucent){
+                m_translucentBlocks.push_back(blockData);
+                continue;
+            }
             if (k + blockData->vertices.size() > size)
                 break;
             memcpy(meshes[i].vertices + k * 3, blockData->vertices.data(), blockData->vertices.size() * sizeof(Vector3));
@@ -128,17 +128,17 @@ void BlockMesh::generateMeshesFromData()
         clearMeshes();
     m_model.meshes = meshes;
     m_model.meshCount = meshCount;
-    m_transparentMeshCount = transparentMeshCount;
+    m_translucentMeshCount = transparentMeshCount;
 
     m_state = State::MESH_GENERATED;
 }
 
 void BlockMesh::updateTransparentMeshes(Vector3 location)
 {
-    std::vector<Mesh> meshes(m_transparentMeshCount);
-    generateTransparentMeshes(location, meshes.data(), m_model.meshCount, m_transparentMeshCount);
-    for (int i = 0; i < m_transparentMeshCount; i++) {
-        Mesh& mesh = m_model.meshes[i + m_model.meshCount - m_transparentMeshCount];
+    std::vector<Mesh> meshes(m_translucentMeshCount);
+    generateTransparentMeshes(location, meshes.data(), m_model.meshCount, m_translucentMeshCount);
+    for (int i = 0; i < m_translucentMeshCount; i++) {
+        Mesh& mesh = m_model.meshes[i + m_model.meshCount - m_translucentMeshCount];
         UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_VERTEX, meshes[i].vertices, meshes[i].vertexCount * sizeof(Vector3), 0);
         UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_TEXCOORD, meshes[i].texcoords, meshes[i].vertexCount * sizeof(Vector2), 0);
         UpdateMeshBuffer(mesh, TextureLoader::MESH_BUFFER_NORMAL, meshes[i].normals, meshes[i].vertexCount * sizeof(Vector3), 0);
@@ -154,12 +154,12 @@ void BlockMesh::updateTransparentMeshes(Vector3 location)
 
 void BlockMesh::generateTransparentMeshes(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount)
 {
-    std::sort(m_transparentBlocks.begin(), m_transparentBlocks.end(), [location](const BlockData* a, const BlockData* b) {
+    std::sort(m_translucentBlocks.begin(), m_translucentBlocks.end(), [location](const BlockData* a, const BlockData* b) {
         return Vector3LengthSqr(a->vertices[0] - location) > Vector3LengthSqr(b->vertices[0] - location);
     });
     
-    auto transparent_it = m_transparentBlocks.begin();
-    size_t transparentVertsRemaining = m_transparentVerticesCount;
+    auto transparent_it = m_translucentBlocks.begin();
+    size_t transparentVertsRemaining = m_translucentVerticesCount;
     for (int i = 0; i < transparentMeshCount; i++) {
         size_t size = transparentVertsRemaining > MAX_VERTS ? MAX_VERTS : transparentVertsRemaining;
         size_t indicesSize = size * 1.5f;
@@ -175,7 +175,7 @@ void BlockMesh::generateTransparentMeshes(Vector3 location, Mesh* meshes, int me
         
         const BlockData* blockData;
         int k = 0;
-        for (; transparent_it != m_transparentBlocks.end(); transparent_it++) {
+        for (; transparent_it != m_translucentBlocks.end(); transparent_it++) {
             blockData = *transparent_it;
             if (k + blockData->vertices.size() > size)
                 break;
@@ -202,9 +202,9 @@ bool BlockMesh::shouldRegenerate() const
 
 void BlockMesh::clearMeshData() {
     m_meshData.clear();
-    m_transparentBlocks.clear();
+    m_translucentBlocks.clear();
     m_verticesCount = 0;
-    m_transparentVerticesCount = 0;
+    m_translucentVerticesCount = 0;
 }
 
 
@@ -229,8 +229,8 @@ void BlockMesh::updateBlockData(Vector3 localCoord)
     int i = (int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH;
     auto it = m_meshData.find(i);
     if (it != m_meshData.end()) {
-        if (it->second.transparent)
-            m_transparentVerticesCount -= it->second.vertices.size();
+        if (it->second.translucent)
+            m_translucentVerticesCount -= it->second.vertices.size();
         else
             m_verticesCount -= it->second.vertices.size();
         m_meshData.erase(it);
@@ -252,23 +252,23 @@ void BlockMesh::genBlockData(Vector3 localCoord)
     const std::vector<Vector3>& blockNormals = m_blocks[i].getNormals();
 
     std::pair<std::unordered_map<int, BlockMesh::BlockData>::iterator, bool> insertion;
-    // if (m_blocks[i].getTransparent()) {
-    //     insertion = m_meshData.insert_or_assign(i, BlockData {});
-    //     BlockData& blockData = insertion.first->second;
-    //     blockData.transparent = true;
-    //     blockData.block = m_blocks[i];
-    //     for (int index = 0; index < blockVertices.size() * 1.5f; index++) {
-    //         blockData.indices.push_back(blockIndices[index]);
-    //     }
-    //     for (int vert = 0; vert < blockVertices.size(); vert++) {
-    //         blockData.vertices.push_back(blockVertices[vert] + offset);
-    //         Direction d = Dir::getDirection(blockNormals[vert]);
-    //         blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
-    //         blockData.normals.push_back(blockNormals[vert]);
-    //     }
-    //     m_transparentVerticesCount += blockVertices.size();
-    //     return;
-    // }
+    if (m_blocks[i].getTranslucent()) {
+        insertion = m_meshData.insert_or_assign(i, BlockData {});
+        BlockData& blockData = insertion.first->second;
+        blockData.translucent = true;
+        blockData.block = m_blocks[i];
+        for (int index = 0; index < blockVertices.size() * 1.5f; index++) {
+            blockData.indices.push_back(blockIndices[index]);
+        }
+        for (int vert = 0; vert < blockVertices.size(); vert++) {
+            blockData.vertices.push_back(blockVertices[vert] + offset);
+            Direction d = Dir::getDirection(blockNormals[vert]);
+            blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
+            blockData.normals.push_back(blockNormals[vert]);
+        }
+        m_translucentVerticesCount += blockVertices.size();
+        return;
+    }
     int facesSkipped = 0;
     BlockData* blockData;
     for (int face = 0; face < m_blocks[i].getVertices().size() / 4; face++) {
@@ -278,8 +278,8 @@ void BlockMesh::genBlockData(Vector3 localCoord)
         if (neighborBlock == Blocks::UNKNOWN) {
             neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
         }
-        // If neighbor block is transparent, force the rendering of the face
-        if (neighborBlock.getTransparent())
+        // If neighbor block is transparent or translucent, force the rendering of the face
+        if (neighborBlock.getTransparent() || neighborBlock.getTranslucent())
             neighborBlock = Blocks::AIR;
         if (neighborBlock != Blocks::AIR || neighborBlock == Blocks::UNKNOWN) {
             facesSkipped++;
@@ -288,7 +288,7 @@ void BlockMesh::genBlockData(Vector3 localCoord)
         if (m_meshData.find(i) == m_meshData.end()) {
             insertion = m_meshData.insert_or_assign(i, BlockData {});
             blockData = &insertion.first->second;
-            blockData->transparent = m_blocks[i].getTransparent();
+            blockData->translucent = m_blocks[i].getTransparent();
             blockData->block = m_blocks[i];
         }
         for (int index = face * 6; index < face * 6 + 6; index++) {
@@ -370,10 +370,10 @@ void BlockMesh::uploadMeshes()
     if (m_model.materialCount == 0) {
         generateModel();
     }
-    for (int mesh = 0; mesh < m_model.meshCount - m_transparentMeshCount; mesh++) {
+    for (int mesh = 0; mesh < m_model.meshCount - m_translucentMeshCount; mesh++) {
         UploadMesh(&m_model.meshes[mesh], false);
     }
-    for (int mesh = m_model.meshCount - m_transparentMeshCount; mesh < m_model.meshCount; mesh++) {
+    for (int mesh = m_model.meshCount - m_translucentMeshCount; mesh < m_model.meshCount; mesh++) {
         UploadMesh(&m_model.meshes[mesh], true);
     }
     m_state = State::MESH_UPLOADED;

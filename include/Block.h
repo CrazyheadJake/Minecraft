@@ -13,7 +13,7 @@ public:
     Block() : m_id(0) { }
     Block(BlockId i) : m_id(i) { m_id = m_id < 0 ? 0 : m_id >= s_names.size() ? s_names.size() - 1 : m_id; }
     Block(std::string name, std::vector<Vector3> vertices, std::vector<unsigned short> indices
-        , std::vector<Vector2> texcoords, std::vector<Vector3> normals, bool transparent = false);
+        , std::vector<Vector2> texcoords, std::vector<Vector3> normals, bool transparent = false, bool translucent = false);
     constexpr std::strong_ordering operator<=>(const Block&) const = default;
     const std::string& getName() const { return s_names[m_id]; }
     const std::vector<Vector3>& getVertices() const { return s_vertices[m_id]; }
@@ -21,7 +21,7 @@ public:
     const std::vector<Vector2>& getTexcoords() const { return s_texcoords[m_id]; }
     const std::vector<Vector3>& getNormals() const { return s_normals[m_id]; }
     bool getTransparent() const { return s_transparencies[m_id]; }
-    // bool getTranslucent() const { return s_translucencies[m_id]; }
+    bool getTranslucent() const { return s_translucencies[m_id]; }
     BlockId getId() const { return m_id; }
 
     Model generateModel();
@@ -35,7 +35,7 @@ private:
     static std::vector<std::vector<Vector2>> s_texcoords;
     static std::vector<std::vector<Vector3>> s_normals;
     static std::vector<bool> s_transparencies;
-    // static std::vector<bool> s_translucencies;
+    static std::vector<bool> s_translucencies;
 };
 
 namespace Blocks {
@@ -210,6 +210,7 @@ namespace Blocks {
     inline Block OAK_PLANKS     = Block("oak_planks", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS);
     inline Block OAK_LEAVES     = Block("oak_leaves", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, true);
     inline Block GRASS          = Block("grass", FOLIAGE_VERTICES, FOLIAGE_INDICES, FOLIAGE_TEXCOORDS, FOLIAGE_NORMALS, true);
+    inline Block WATER          = Block("water", CUBE_VERTICES, CUBE_INDICES, CUBE_TEXCOORDS, CUBE_NORMALS, false, true);
 
     extern const Block& getBlock(const std::string& name);
 };

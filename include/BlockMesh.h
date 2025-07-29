@@ -51,7 +51,7 @@ class BlockMesh {
             std::vector<unsigned short> indices;
             std::vector<Vector2> texcoords;
             std::vector<Vector3> normals;
-            bool transparent;
+            bool translucent;
             Block block;
         };
         enum class State {
@@ -71,9 +71,9 @@ class BlockMesh {
         std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
         std::unordered_map<int, BlockData> m_meshData;
         int m_verticesCount = 0;
-        std::vector<const BlockData*> m_transparentBlocks;
-        int m_transparentVerticesCount = 0;
-        int m_transparentMeshCount = 0;
+        std::vector<const BlockData*> m_translucentBlocks;
+        int m_translucentVerticesCount = 0;
+        int m_translucentMeshCount = 0;
         Model m_model = {0};
         BoundingBox m_boundingBox = {0};
 
