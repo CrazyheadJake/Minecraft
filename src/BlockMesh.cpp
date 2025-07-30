@@ -11,6 +11,7 @@
 #include "Player.h"
 #include "VectorUtils.h"
 #include "Direction.h"
+#include "rlgl.h"
 
 BlockMesh::BlockMesh(World &world, const siv::PerlinNoise& perlin, Vector3 offset) : m_chunkOffset(offset), m_world(world)
 {
@@ -53,7 +54,11 @@ void BlockMesh::drawTransparentMesh() const
         if (m_model.meshes[i].vertexCount == 0)
             return;
         BeginBlendMode(BLEND_ALPHA);
+        rlDisableBackfaceCulling();
+        // rlDisableDepthMask();
         DrawMesh(m_model.meshes[i], m_model.materials[0], m_model.transform);
+        // rlEnableDepthMask();
+        rlEnableBackfaceCulling();
         EndBlendMode();
     }
 
@@ -252,45 +257,36 @@ void BlockMesh::genBlockData(Vector3 localCoord)
     const std::vector<Vector3>& blockNormals = m_blocks[i].getNormals();
 
     std::pair<std::unordered_map<int, BlockMesh::BlockData>::iterator, bool> insertion;
-    if (m_blocks[i].getTranslucent()) {
-        insertion = m_meshData.insert_or_assign(i, BlockData {});
-        BlockData& blockData = insertion.first->second;
-        blockData.translucent = true;
-        blockData.block = m_blocks[i];
-        for (int index = 0; index < blockVertices.size() * 1.5f; index++) {
-            blockData.indices.push_back(blockIndices[index]);
-        }
-        for (int vert = 0; vert < blockVertices.size(); vert++) {
-            blockData.vertices.push_back(blockVertices[vert] + offset);
-            Direction d = Dir::getDirection(blockNormals[vert]);
-            blockData.texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
-            blockData.normals.push_back(blockNormals[vert]);
-        }
-        m_translucentVerticesCount += blockVertices.size();
-        return;
-    }
     int facesSkipped = 0;
     BlockData* blockData;
+    localCoord += Vector3 {0.5f, 0.5f, 0.5f};
     for (int face = 0; face < m_blocks[i].getVertices().size() / 4; face++) {
         Vector3 normal = blockNormals[face * 4];
-        Block neighborBlock = getBlockLocal(localCoord + normal);
+        Vector3 faceRelativeCenter = (blockVertices[face * 4] + 
+            blockVertices[face * 4 + 1] + 
+            blockVertices[face * 4 + 2] + 
+            blockVertices[face * 4 + 3]) / 4.0f;
+        Vector3 faceCenter = localCoord + faceRelativeCenter;
+        Block neighborBlock = getBlockLocal(faceCenter + normal * 0.01f);
         // If neighbor block is in a different chunk, check the neighboring chunks
         if (neighborBlock == Blocks::UNKNOWN) {
             neighborBlock = m_world.getBlockGlobal(localCoord + m_chunkOffset + normal);
         }
-        // If neighbor block is transparent or translucent, force the rendering of the face
-        if (neighborBlock.getTransparent() || neighborBlock.getTranslucent())
+        // If neighbor block is transparent or translucent, force the rendering of the face, unless its the same as the current block
+        if (neighborBlock.getTransparent() || (neighborBlock.getTranslucent() && !(neighborBlock == m_blocks[i])))
             neighborBlock = Blocks::AIR;
         if (neighborBlock != Blocks::AIR || neighborBlock == Blocks::UNKNOWN) {
             facesSkipped++;
             continue; 
         }
+        // If the block data doesn't exist yet (ie this is the first face), generate block data
         if (m_meshData.find(i) == m_meshData.end()) {
             insertion = m_meshData.insert_or_assign(i, BlockData {});
             blockData = &insertion.first->second;
-            blockData->translucent = m_blocks[i].getTransparent();
+            blockData->translucent = m_blocks[i].getTranslucent();
             blockData->block = m_blocks[i];
         }
+        // Insert block info into block data structure
         for (int index = face * 6; index < face * 6 + 6; index++) {
             blockData->indices.push_back(blockIndices[index] - facesSkipped * 4);
         }
@@ -300,7 +296,11 @@ void BlockMesh::genBlockData(Vector3 localCoord)
             blockData->texcoords.push_back(TextureLoader::getTexCoord(m_blocks[i], d, blockTexcoords[vert]));
             blockData->normals.push_back(blockNormals[vert]);
         }
-        m_verticesCount += 4;
+        // Keep track of how many vertices we have
+        if (m_blocks[i].getTranslucent())
+            m_translucentVerticesCount += 4;
+        else
+            m_verticesCount += 4;
     }
 }
 
@@ -316,8 +316,10 @@ void BlockMesh::generateWorld(const siv::PerlinNoise& perlin)
             double noise = perlin.octave2D((double)(x + m_chunkOffset.x) * SCALE, (double)(z + m_chunkOffset.z) * SCALE, 3, 0.5);
             int topHeight = SEALEVEL + (int)(noise * 20);
             for (int y = 0; y < HEIGHT; y++) {
-                if (y > topHeight) {
+                if (y > topHeight && y > SEALEVEL)
                     setBlock(x, y, z, Blocks::AIR);
+                else if (y > topHeight && y <= SEALEVEL) {
+                    setBlock(x, y, z, Blocks::WATER);
                 }
                 else if (y == topHeight) {
                     setBlock(x, y, z, Blocks::GRASS_BLOCK);
@@ -360,7 +362,7 @@ void BlockMesh::tryUploadMeshes()
 
 Vector3 BlockMesh::getLocalCoord(int i) const
 {
-    return {(float)(i % LENGTH),
+    return Vector3{(float)(i % LENGTH),
         (float)((i / LENGTH / LENGTH) % HEIGHT), 
         (float)((i / LENGTH) % LENGTH)};
 }

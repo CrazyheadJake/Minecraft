@@ -27,6 +27,7 @@ class Player {
         void setHeldBlock(int i);
         Block getHeldBlock() { return m_selectedBlock; }
         void drawHud() const;
+        void draw3DElements() const;
         Vector2 getChunk() const;
 
     private:

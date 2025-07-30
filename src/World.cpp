@@ -67,6 +67,7 @@ void World::load(Texture& tex)
 
 void World::drawChunks()
 {
+    static Vector3 lastPlayerLoc;
     m_chunkLock.lock();
     int chunksDrawn = 0;
     // Drawing non-transparent blocks for each chunk
@@ -74,7 +75,8 @@ void World::drawChunks()
         BlockMesh& chunk = chunkRef.get();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
-        // chunk.updateTransparentMeshes(m_player.getLocation());
+        if (m_player.getLocation() != lastPlayerLoc)
+            chunk.updateTransparentMeshes(m_player.getLocation());
 
         if (chunk.isVisible(m_player) && chunk.isValid()) {
             chunk.drawMesh();
@@ -89,6 +91,7 @@ void World::drawChunks()
         }
     }
     m_chunkLock.unlock();
+    lastPlayerLoc = m_player.getLocation();
 }
 
 void World::drawSkybox()
@@ -354,9 +357,12 @@ void World::runChunkLoader()
                 // Get the chunk to be unloaded, but don't unload it until after the lock is released
                 std::unique_ptr<BlockMesh> chunk = std::move(it->second);   
                 it = m_chunks.erase(it);
-                auto removed = std::remove_if(m_sortedChunks.begin(), m_sortedChunks.end(), [&chunk](const std::reference_wrapper<BlockMesh>& ref) {
-                    return &ref.get() == chunk.get();
-                });
+                for (auto sortedIt = m_sortedChunks.begin(); sortedIt != m_sortedChunks.end(); sortedIt++) {
+                    if (&sortedIt->get() == chunk.get()) {
+                        m_sortedChunks.erase(sortedIt);
+                        break;
+                    }
+                }
                 m_chunkLock.unlock();
                 // it++;
             }

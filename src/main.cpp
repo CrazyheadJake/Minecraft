@@ -7,6 +7,7 @@
 #include <filesystem>
 #include "TextureLoader.h"
 #include "World.h"
+#include "rlgl.h"
 
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
@@ -80,6 +81,7 @@ void runGame() {
         SetShaderValue(TextureLoader::s_material.shader, timeLoc, &shaderTime, SHADER_UNIFORM_FLOAT);
         world.drawSkybox();
         world.drawChunks();
+        world.getPlayer().draw3DElements();
 
         EndMode3D();
         // 2D rendering
@@ -99,6 +101,8 @@ void runGame() {
 
 int main() {
     InitWindow(SCWIDTH, SCHEIGHT, "Minecraft");
+    rlSetLineWidth(1.50f);
+    rlEnableSmoothLines();
     SetExitKey(-1);
     SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path(ROOT_PATH);

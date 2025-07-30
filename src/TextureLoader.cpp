@@ -57,6 +57,10 @@ void TextureLoader::createDirectories() {
 void TextureLoader::createAtlas(const std::vector<fs::directory_entry>& files) {
     Image image = {nullptr, BLOCK_SIZE, BLOCK_SIZE * ((int)files.size()+1), 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     image.data = calloc(BLOCK_SIZE * BLOCK_SIZE * (files.size()+1), 4);
+    ImageDrawRectangle(&image, 0, 0, BLOCK_SIZE/2, BLOCK_SIZE/2, BLACK);
+    ImageDrawRectangle(&image, BLOCK_SIZE/2, BLOCK_SIZE/2, BLOCK_SIZE/2, BLOCK_SIZE/2, BLACK);
+    ImageDrawRectangle(&image, 0, BLOCK_SIZE/2, BLOCK_SIZE/2, BLOCK_SIZE/2, PURPLE);
+    ImageDrawRectangle(&image, BLOCK_SIZE/2, 0, BLOCK_SIZE/2, BLOCK_SIZE/2, PURPLE);
     s_numTextures = 1;  // First texture is always the purple/black checked texture
     for (int i = 0; i < files.size(); i++) {
         s_numTextures++;
@@ -131,7 +135,12 @@ void TextureLoader::createMap(const std::vector<fs::directory_entry>& files) {
 }
 
 void TextureLoader::setFace(Block block, Direction dir, const std::string& field, const std::unordered_map<std::string, int>& fileIndices, const json& data) {
-    float yLocation = BLOCK_SIZE*fileIndices.at(TEXTURES_DIR.string() + (std::string)data.at(field));
+    std::string filePath = TEXTURES_DIR.string() + (std::string)data.at(field);
+    auto it = fileIndices.find(filePath);
+    if (it == fileIndices.end())
+        return;
+    int fileIndex = it->second;
+    float yLocation = BLOCK_SIZE * fileIndex;
     s_textureLocations[{block.getId(), dir}] = {0, yLocation};
 }
 

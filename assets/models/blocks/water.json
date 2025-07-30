@@ -1,5 +1,5 @@
 {
-    "sides": "blocks/water_flowing_forest.png",
+    "sides": "blocks/water_flow_forest.png",
     "top": "blocks/water_still_forest.png",
     "bottom": "blocks/water_still_forest.png"
 }

@@ -5,6 +5,7 @@
 #include <cmath>
 #include "VectorUtils.h"
 #include "Block.h"
+#include "rlgl.h"
 
 Player::Player(Vector3 position, float fovy, int perspective) : m_position(position), m_fovy(fovy), m_perspective(perspective) 
 {
@@ -81,14 +82,16 @@ void Player::setHeldBlock(int i)
 
 void Player::drawHud() const
 {   
-    BeginMode3D(*this);
-    DrawCubeWires(m_targetBlock + Vector3{0.5f, 0.5f, 0.5f}, 1.003, 1.003, 1.003, BLACK);
-    EndMode3D();
     int cursorSize = 3;
     DrawCircle(GetRenderWidth()/2.0f, GetRenderHeight()/2.0f, cursorSize, GRAY);
     // int hotbarSize = 64;
     // int hotbarElements = 10;
     // DrawRectangle(GetRenderWidth()/2.0f - hotbarSize * hotbarElements / 2.0f, GetRenderHeight() - hotbarSize, hotbarSize * hotbarElements, hotbarSize, LIGHTGRAY);
+}
+
+void Player::draw3DElements() const
+{
+    DrawCubeWires(m_targetBlock + Vector3{0.5f, 0.5f, 0.5f}, 1.002, 1.002, 1.002, BLACK);
 }
 
 void Player::moveUp(float dt)
