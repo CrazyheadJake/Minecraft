@@ -21,33 +21,33 @@ namespace std {
 namespace fs = std::filesystem;
 
 class TextureLoader {
-    public:
-        static const int MESH_BUFFER_VERTEX = 0;
-        static const int MESH_BUFFER_TEXCOORD = 1;
-        static const int MESH_BUFFER_NORMAL = 2;
+public:
+    static const int MESH_BUFFER_VERTEX = 0;
+    static const int MESH_BUFFER_TEXCOORD = 1;
+    static const int MESH_BUFFER_NORMAL = 2;
 
-        static Material s_material;
-        TextureLoader() = delete;
-        static void loadTextures();
-        static void unloadTextures();
-        static Vector2 getTexCoord(Block block, Direction d, Vector2 corner);
-        static const Material& getSkyBox() { return s_skybox; }
-        static Material copyMaterial(const Material& material);
-        static Material newMaterial();
+    static Material s_material;
+    TextureLoader() = delete;
+    static void loadTextures();
+    static void unloadTextures();
+    static Vector2 getTexCoord(Block block, Direction d, Vector2 corner);
+    static const Material& getSkyBox() { return s_skybox; }
+    static Material copyMaterial(const Material& material);
+    static Material newMaterial();
 
-    private:
-        static const int BLOCK_SIZE = 16;
-        static std::unordered_map<BlockFace, Vector2> s_textureLocations;
-        static const fs::path BLOCKTEXTURES_PATH;
-        static const fs::path BLOCKMODELS_PATH;
-        static const fs::path TEXTURES_DIR;
+private:
+    static const int BLOCK_SIZE = 16;
+    static std::unordered_map<BlockFace, Vector2> s_textureLocations;
+    static const fs::path BLOCKTEXTURES_PATH;
+    static const fs::path BLOCKMODELS_PATH;
+    static const fs::path TEXTURES_DIR;
 
-        static Material s_skybox;
-        static const Texture* s_texture;
-        static int s_numTextures;
+    static Material s_skybox;
+    static const Texture* s_texture;
+    static int s_numTextures;
 
-        static void setFace(Block block, Direction d, const std::string& field, const std::unordered_map<std::string, int>& fileIndices, const json& data);
-        static void createDirectories();
-        static void createMap(const std::vector<fs::directory_entry>& files);
-        static void createAtlas(const std::vector<fs::directory_entry>& files);
+    static void setFace(Block block, Direction d, const std::string& field, const std::unordered_map<std::string, int>& fileIndices, const json& data);
+    static void createDirectories();
+    static void createMap(const std::vector<fs::directory_entry>& files);
+    static void createAtlas(const std::vector<fs::directory_entry>& files);
 };

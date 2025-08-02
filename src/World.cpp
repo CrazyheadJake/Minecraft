@@ -6,6 +6,7 @@
 #include <iostream>
 #include <thread>
 #include "TextureLoader.h"
+#include "BlockInstance.h"
 
 World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
@@ -307,6 +308,37 @@ void World::regenerateChunk(Vector2 chunkLoc)
     chunk->requestRegenerate();
 }
 
+void World::addFutureBlock(BlockInstance block)
+{
+    Vector2 chunkLoc = Utils::floorVector(Vector2{block.location.x, block.location.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    m_chunkLock.lock();
+    if (m_chunks.contains(chunkLoc)) {
+        if (chunkLoc == Vector2 {0, 2})
+            std::cout << "DEBUGGING" << std::endl;
+        m_chunkLock.unlock();
+        setBlockGlobal(block.location, block.block, false);
+        m_chunkLock.lock();
+        m_chunks[chunkLoc]->requestRegenerate();
+        m_chunkLock.unlock();
+        return;
+    }
+    m_chunkLock.unlock();
+    auto it = m_futureBlocks.find(chunkLoc);
+    if (it == m_futureBlocks.end()) {
+        m_futureBlocks.insert_or_assign(chunkLoc, std::vector<BlockInstance>{});
+    }
+    m_futureBlocks[chunkLoc].push_back(block);
+}
+
+std::vector<BlockInstance> World::getFutureBlocks(Vector2 chunkLoc)
+{
+    auto it = m_futureBlocks.find(chunkLoc);
+    if (it == m_futureBlocks.end()) {
+        return {};
+    }
+    return it->second;
+}
+
 std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> World::genCirclePoints(float radius)
 {
     std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> set = {};
@@ -386,7 +418,7 @@ void World::runChunkLoader()
         for (Vector2 chunkLoc: chunkLocs) {
             chunkLoc += playerChunk; // Offset chunk location to player's position
             // Generate the chunk before we lock the mutex to avoid blocking other threads
-            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(*this, m_perlinNoise, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
+            std::unique_ptr<BlockMesh> chunk = std::make_unique<BlockMesh>(*this, m_seed, Vector3{chunkLoc.x * BlockMesh::LENGTH, 0, chunkLoc.y * BlockMesh::LENGTH});
             m_chunkLock.lock();
             m_chunks.insert_or_assign(chunk->getChunkLoc(), std::move(chunk));
             m_chunkLock.unlock();

@@ -41,7 +41,7 @@ private:
 namespace Blocks {
     inline std::unordered_map<std::string, Block> s_stringToBlock;
 
-std::vector<Vector3> const SHORT_CUBE_VERTICES = {
+    std::vector<Vector3> const SHORT_CUBE_VERTICES = {
         {-0.500f, -0.500f, 0.500f},
         {0.500f, -0.500f, 0.500f},
         {0.500f, 0.500f - 2/16.0f, 0.500f},

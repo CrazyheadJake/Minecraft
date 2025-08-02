@@ -8,6 +8,7 @@
 #include "TextureLoader.h"
 #include "World.h"
 #include "rlgl.h"
+#include "Structure.h"
 
 const int SCWIDTH = 1280;
 const int SCHEIGHT = 720;
@@ -34,6 +35,7 @@ bool AltF4Pressed() {
 void runGame() {
     // Load the world
     TextureLoader::loadTextures();
+    Structures::generateStructs();
     Image loadingImg = LoadImage("assets/textures/sprites/minceraft.png");
     Texture loadingTex = LoadTextureFromImage(loadingImg);
     World world;
