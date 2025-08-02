@@ -39,8 +39,8 @@ class BlockMesh {
         void requestRegenerate();
         void generateMeshData();
         void generateMeshesFromData();
-        void updateTransparentMeshes(Vector3 location);
-        void generateTransparentMeshes(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount);
+        void updateTransparentMeshes(Vector3 location, bool newMesh = false);
+        void generateTransparentMeshes(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount, bool newMesh);
         bool shouldRegenerate() const;
         void lock();
         void unlock();
@@ -52,6 +52,7 @@ class BlockMesh {
             std::vector<Vector2> texcoords;
             std::vector<Vector3> normals;
             bool translucent;
+            Vector3 location;
             Block block;
         };
         enum class State {
@@ -88,5 +89,4 @@ class BlockMesh {
         void generateWorld(const siv::PerlinNoise& perlin);
         void uploadMeshes();
         Vector3 getCorner(int i) const;
-
 };

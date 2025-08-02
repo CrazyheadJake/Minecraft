@@ -30,12 +30,16 @@ World::~World() {
 
 void World::update(double dt)
 {
+    static Vector2 playerChunk;
     if (IsKeyPressed(KEY_F2)) {
         EnableCursor();
         std::cout << "DEBUGGING" << std::endl;
     }
 
     updatePlayer(dt);
+
+    playerChunk = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    sortChunks(playerChunk);
 }
 
 void World::load(Texture& tex)
@@ -75,7 +79,7 @@ void World::drawChunks()
         BlockMesh& chunk = chunkRef.get();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
-        if (m_player.getLocation() != lastPlayerLoc)
+        if (Utils::floorVector(m_player.getLocation()) != lastPlayerLoc && chunk.isValid())
             chunk.updateTransparentMeshes(m_player.getLocation());
 
         if (chunk.isVisible(m_player) && chunk.isValid()) {
@@ -91,7 +95,7 @@ void World::drawChunks()
         }
     }
     m_chunkLock.unlock();
-    lastPlayerLoc = m_player.getLocation();
+    lastPlayerLoc = Utils::floorVector(m_player.getLocation());
 }
 
 void World::drawSkybox()
@@ -392,7 +396,6 @@ void World::runChunkLoader()
             chunk->tryGenerateMeshData();
             chunk->unlock();
         }
-        sortChunks(playerChunk);
     }
 }
 
