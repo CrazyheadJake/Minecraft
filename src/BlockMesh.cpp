@@ -141,6 +141,8 @@ void BlockMesh::generateMeshesFromData()
 
 void BlockMesh::updateTransparentMeshes(Vector3 location, bool newMesh)
 {
+    if (m_translucentBlocks.size() == 0)
+        return;
     generateTransparentMeshes(location, &m_model.meshes[m_model.meshCount - m_translucentMeshCount], m_model.meshCount, m_translucentMeshCount, false);
     for (int i = 0; i < m_translucentMeshCount; i++) {
         Mesh& mesh = m_model.meshes[i + m_model.meshCount - m_translucentMeshCount];
@@ -383,6 +385,9 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
                 std::vector<BlockInstance> tree = Structures::TREE.getStructure(index);
                 for (int i = 0; i < tree.size(); i++) {
                     Vector3 loc = Vector3 {(float)x, (float)topHeight + 1, (float)z} + tree[i].location;
+                    // If there is already a block there with a higher priority (higher id), don't generate
+                    if (getBlockLocal(loc) > tree[i].block)
+                        continue;
                     if (isLocalCoord(loc))
                         setBlock(loc, tree[i].block);
                     else {

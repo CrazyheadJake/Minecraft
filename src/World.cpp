@@ -78,6 +78,7 @@ void World::drawChunks()
     // Drawing non-transparent blocks for each chunk
     for (const auto& chunkRef: m_sortedChunks) {
         BlockMesh& chunk = chunkRef.get();
+        // chunk.lock();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
         if (Utils::floorVector(m_player.getLocation()) != lastPlayerLoc && chunk.isValid())
@@ -85,16 +86,18 @@ void World::drawChunks()
 
         if (chunk.isVisible(m_player) && chunk.isValid()) {
             chunk.drawMesh();
+            chunk.drawTransparentMesh();
+
             chunksDrawn++;
         }
+        // chunk.unlock();
     }
     // Drawing transparent blocks for each chunk
-    for (const auto& chunkRef: m_sortedChunks) {
-        BlockMesh& chunk = chunkRef.get();
-        if (chunk.isVisible(m_player) && chunk.isValid()) {
-            chunk.drawTransparentMesh();
-        }
-    }
+    // for (const auto& chunkRef: m_sortedChunks) {
+    //     BlockMesh& chunk = chunkRef.get();
+    //     if (chunk.isVisible(m_player) && chunk.isValid()) {
+    //     }
+    // }
     m_chunkLock.unlock();
     lastPlayerLoc = Utils::floorVector(m_player.getLocation());
 }
@@ -424,9 +427,11 @@ void World::runChunkLoader()
             m_chunkLock.unlock();
         }
         for (const auto& [chunkLoc, chunk]: m_chunks) {
+            // m_chunkLock.lock();
             chunk->lock();
             chunk->tryGenerateMeshData();
             chunk->unlock();
+            // m_chunkLock.unlock();
         }
     }
 }
