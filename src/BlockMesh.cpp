@@ -385,24 +385,27 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
                 std::vector<BlockInstance> tree = Structures::TREE.getStructure(index);
                 for (int i = 0; i < tree.size(); i++) {
                     Vector3 loc = Vector3 {(float)x, (float)topHeight + 1, (float)z} + tree[i].location;
-                    // If there is already a block there with a higher or equal priority, don't generate
+                    // Block is in the chunk
                     if (isLocalCoord(loc)) {
                         if (getBlockLocal(loc).getGenerationPriority() >= tree[i].block.getGenerationPriority())
                             continue;
                         setBlock(loc, tree[i].block);
                     }
+                    // Block is in a neighboring chunk
                     else {
                         if (m_world.getBlockGlobal(loc + m_chunkOffset).getGenerationPriority() >= tree[i].block.getGenerationPriority())
                             continue;
                         tree[i].location = loc + m_chunkOffset;
-                        m_world.setBlockGlobal(tree[i].location, tree[i].block, true);
+                        // NOTE - because updateMesh is false, there will be a couple extra (nonvisible) faces in the mesh
+                        // When it is set to true, we get a bug where some chunks won't load
+                        m_world.setBlockGlobal(tree[i].location, tree[i].block, false);
                     }
                 }
             }
             // Foliage generation
             double foliageValue = rand() / (double)RAND_MAX;
             if (foliageValue < 0.06 && topHeight >= SEALEVEL) {
-                if (Blocks::GRASS.getGenerationPriority() > m_blocks[getIndex({(float)x, (float)topHeight + 1, (float)z})].getGenerationPriority())
+                if (Blocks::GRASS.getGenerationPriority() > getBlockLocal({(float)x, (float)topHeight + 1, (float)z}).getGenerationPriority())
                     setBlock({(float)x, (float)topHeight + 1, (float)z}, Blocks::GRASS);
             }
 
