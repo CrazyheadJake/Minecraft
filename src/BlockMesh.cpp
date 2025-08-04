@@ -350,54 +350,70 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
 {
     siv::PerlinNoise perlin(seed);
 
-    std::vector<BlockInstance> futureBlocks = m_world.getFutureBlocks(getChunkLoc());
-    for (BlockInstance block : futureBlocks) {
-        setBlock(block.location - m_chunkOffset, block.block);
-    }
-
     for (int x  = 0; x < LENGTH; x++) {
         for (int z = 0; z < LENGTH; z++) {    
             double noise = perlin.octave2D((double)(x + m_chunkOffset.x) * SCALE, (double)(z + m_chunkOffset.z) * SCALE, 3, 0.5);
             int topHeight = SEALEVEL + (int)(noise * 20);
             for (int y = 0; y < HEIGHT; y++) {
-                if (m_blocks[getIndex({(float)x, (float)y, (float)z})] != Blocks::UNKNOWN)
-                    continue;
-                if (y > topHeight && y > SEALEVEL)
-                    setBlock(x, y, z, Blocks::AIR);
+                int priority = getBlockLocal(Vector3{(float)x, (float)y, (float)z}).getGenerationPriority();
+                if (y > topHeight && y > SEALEVEL) {
+                    if (Blocks::AIR.getGenerationPriority() > priority)
+                        setBlock(x, y, z, Blocks::AIR);
+                }
                 else if (y > topHeight && y <= SEALEVEL) {
-                    setBlock(x, y, z, Blocks::WATER);
+                    if (Blocks::WATER.getGenerationPriority() > priority)
+                        setBlock(x, y, z, Blocks::WATER);
                 }
                 else if (y == topHeight) {
-                    setBlock(x, y, z, Blocks::GRASS_BLOCK);
+                    if (Blocks::GRASS_BLOCK.getGenerationPriority() > priority)
+                        setBlock(x, y, z, Blocks::GRASS_BLOCK);
                 }
                 else if (y > topHeight - 4) {
-                    setBlock(x, y, z, Blocks::DIRT);
+                    if (Blocks::DIRT.getGenerationPriority() > priority)
+                        setBlock(x, y, z, Blocks::DIRT);
                 }
-                else
+                else if (Blocks::STONE.getGenerationPriority() > priority)
                     setBlock(x, y, z, Blocks::STONE);
             }
+            // Tree generation
             int s = (x + (int)m_chunkOffset.x) ^ 1402978341 + (z + (int)m_chunkOffset.z) * 1243 + seed;
             srand(s);
             double treeValue = rand() / (double)RAND_MAX;
-            if (treeValue < 0.02 && topHeight > SEALEVEL) {
+            if (treeValue < 0.02 && topHeight >= SEALEVEL) {
                 int random = rand();
                 int index = random % Structures::TREE.getStructureCount();
                 std::vector<BlockInstance> tree = Structures::TREE.getStructure(index);
                 for (int i = 0; i < tree.size(); i++) {
                     Vector3 loc = Vector3 {(float)x, (float)topHeight + 1, (float)z} + tree[i].location;
-                    // If there is already a block there with a higher priority (higher id), don't generate
-                    if (getBlockLocal(loc) > tree[i].block)
-                        continue;
-                    if (isLocalCoord(loc))
+                    // If there is already a block there with a higher or equal priority, don't generate
+                    if (isLocalCoord(loc)) {
+                        if (getBlockLocal(loc).getGenerationPriority() >= tree[i].block.getGenerationPriority())
+                            continue;
                         setBlock(loc, tree[i].block);
+                    }
                     else {
+                        if (m_world.getBlockGlobal(loc + m_chunkOffset).getGenerationPriority() >= tree[i].block.getGenerationPriority())
+                            continue;
                         tree[i].location = loc + m_chunkOffset;
-                        m_world.addFutureBlock(tree[i]);
+                        m_world.setBlockGlobal(tree[i].location, tree[i].block, true);
                     }
                 }
             }
+            // Foliage generation
+            double foliageValue = rand() / (double)RAND_MAX;
+            if (foliageValue < 0.06 && topHeight >= SEALEVEL) {
+                if (Blocks::GRASS.getGenerationPriority() > m_blocks[getIndex({(float)x, (float)topHeight + 1, (float)z})].getGenerationPriority())
+                    setBlock({(float)x, (float)topHeight + 1, (float)z}, Blocks::GRASS);
+            }
+
         }
     }
+
+    std::vector<BlockInstance> futureBlocks = m_world.getFutureBlocks(getChunkLoc());
+    for (BlockInstance block : futureBlocks) {
+        setBlock(block.location - m_chunkOffset, block.block);
+    }
+
     m_state = State::WORLD_GENERATED;
 }
 

@@ -257,6 +257,17 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
         return;  // Below/above world
     globalCoord = Utils::floorVector(globalCoord);
     Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+
+    // Add the block to future blocks
+    auto future_it = m_futureBlocks.find(chunkLoc);
+    if (future_it == m_futureBlocks.end()) {
+        auto insertion = m_futureBlocks.insert_or_assign(chunkLoc, std::vector<BlockInstance>{});
+        insertion.first->second.push_back({block, globalCoord});
+    }
+    else
+        future_it->second.push_back({block, globalCoord});
+
+    // Attempt to set the block if the chunk is loaded
     m_chunkLock.lock();
     auto it = m_chunks.find(chunkLoc);
     if (it == m_chunks.end()) {
@@ -267,6 +278,8 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
     m_chunkLock.unlock();
     Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
     chunk->setBlock(localCoord, block, updateMesh);
+    
+    // Update surrounding blocks for their meshes to be updated
     if (updateMesh) {
         updateBlockGlobal(globalCoord + Vector3{1.0f, 0.0f, 0.0f});
         updateBlockGlobal(globalCoord + Vector3{-1.0f, 0.0f, 0.0f});
@@ -309,28 +322,6 @@ void World::regenerateChunk(Vector2 chunkLoc)
     std::unique_ptr<BlockMesh>& chunk = it->second;
     m_chunkLock.unlock();
     chunk->requestRegenerate();
-}
-
-void World::addFutureBlock(BlockInstance block)
-{
-    Vector2 chunkLoc = Utils::floorVector(Vector2{block.location.x, block.location.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
-    m_chunkLock.lock();
-    if (m_chunks.contains(chunkLoc)) {
-        if (chunkLoc == Vector2 {0, 2})
-            std::cout << "DEBUGGING" << std::endl;
-        m_chunkLock.unlock();
-        setBlockGlobal(block.location, block.block, false);
-        m_chunkLock.lock();
-        m_chunks[chunkLoc]->requestRegenerate();
-        m_chunkLock.unlock();
-        return;
-    }
-    m_chunkLock.unlock();
-    auto it = m_futureBlocks.find(chunkLoc);
-    if (it == m_futureBlocks.end()) {
-        m_futureBlocks.insert_or_assign(chunkLoc, std::vector<BlockInstance>{});
-    }
-    m_futureBlocks[chunkLoc].push_back(block);
 }
 
 std::vector<BlockInstance> World::getFutureBlocks(Vector2 chunkLoc)

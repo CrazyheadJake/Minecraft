@@ -30,7 +30,6 @@ public:
     void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
     void updateBlockGlobal(Vector3 globalCoord);
     void regenerateChunk(Vector2 chunkLoc);
-    void addFutureBlock(BlockInstance block);
     std::vector<BlockInstance> getFutureBlocks(Vector2 chunkLoc);
     
 
