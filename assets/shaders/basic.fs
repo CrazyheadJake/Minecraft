@@ -28,6 +28,12 @@ float sinusoidal(float t) {
     return (-cos(t * 2 * 3.14159265) + 1) / 2.0;
 }
 
+float lightCycle(float t) {
+    if (t < 0.5)
+        return smoothstep(0.2, 0.3, t);
+    return 1 - smoothstep(0.7, 0.8, t);
+}
+
 void main()
 {
     float lightMin = 0.2;
@@ -45,7 +51,7 @@ void main()
     float lightIntensity = remapAndClamp(dot(lightDirection, fragNormal), -1, 1, 0.5, 1);
     vec3 nightColor = vec3(105/255.0f, 105/255.0f, 162/255.0f);
     vec3 dayColor = vec3(1, 1, 1);
-    vec3 lightColor = mix(nightColor, dayColor, sinusoidal(time));
+    vec3 lightColor = mix(nightColor, dayColor, lightCycle(time));
 
     vec3 mappedColor = remapAndClamp(lightColor, vec3(0.0), vec3(1.0), vec3(lightMin), vec3(lightMin) + vec3(lightIntensity) * fragColor.xyz);
     texelColor.xyz = texelColor.xyz * mappedColor;

@@ -10,6 +10,7 @@
 
 World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
+    // Generate the skybox
     m_skybox = Blocks::DIRT.generateModel();
     m_skybox.materials[0].shader = LoadShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
     for (int i = 0; i < m_skybox.meshes->vertexCount; i++) {
@@ -18,16 +19,33 @@ World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&Worl
         m_skybox.meshes->vertices[3*i+2] *= 1000;
     }
     UploadMesh(&m_skybox.meshes[0], false);
+
+    // Sun and moon textures
+    m_sun = LoadModelFromMesh(GenMeshPlane(150, 150, 1, 1));
+    m_moon = LoadModelFromMesh(GenMeshPlane(150, 150, 1, 1));
+
+    m_sun.materials[0].shader = LoadShader("assets/shaders/sunmoon.vs", "assets/shaders/sunmoon.fs");
+    m_moon.materials[0].shader = m_sun.materials[0].shader;
+
+    m_sun.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("assets/textures/sprites/sun.png");
+    m_moon.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("assets/textures/sprites/moon.png");
 }
 
 World::~World() {
+    // End the chunk loader thread
     m_running = false;
     if (m_chunkLoader.joinable())
         m_chunkLoader.join();
+
+    // Free skybox
     UnloadMesh(m_skybox.meshes[0]);
     free(m_skybox.meshes);
     free(m_skybox.materials);
     free(m_skybox.meshMaterial);
+
+    // Sun and moon
+    UnloadModel(m_sun);
+    UnloadModel(m_moon);
 }
 
 void World::update(double dt)
@@ -43,9 +61,9 @@ void World::update(double dt)
     playerChunk = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     sortChunks(playerChunk);
 
-    float shaderTime = GetTime() / 100.0f;
-    SetShaderValue(TextureLoader::s_material.shader, TIMELOC, &shaderTime, SHADER_UNIFORM_FLOAT);
-    SetShaderValue(m_skybox.materials[0].shader, TIMELOC, &shaderTime, SHADER_UNIFORM_FLOAT);
+    m_time = GetTime() / 100.0f;
+    SetShaderValue(TextureLoader::s_material.shader, TIMELOC, &m_time, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(m_skybox.materials[0].shader, TIMELOC, &m_time, SHADER_UNIFORM_FLOAT);
 }
 
 void World::load(Texture& tex)
@@ -84,7 +102,6 @@ void World::drawChunks()
     bool updateTranslucentMeshes = Utils::floorVector(m_player.getLocation()) != lastPlayerLoc;
     for (const auto& chunkRef: m_sortedChunks) {
         BlockMesh& chunk = chunkRef.get();
-        // chunk.lock();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
         if (updateTranslucentMeshes && chunk.isValid())
@@ -96,14 +113,8 @@ void World::drawChunks()
 
             chunksDrawn++;
         }
-        // chunk.unlock();
     }
-    // Drawing transparent blocks for each chunk
-    // for (const auto& chunkRef: m_sortedChunks) {
-    //     BlockMesh& chunk = chunkRef.get();
-    //     if (chunk.isVisible(m_player) && chunk.isValid()) {
-    //     }
-    // }
+
     m_chunkLock.unlock();
     lastPlayerLoc = Utils::floorVector(m_player.getLocation());
 }
@@ -116,6 +127,12 @@ void World::drawSkybox()
     DrawMesh(m_skybox.meshes[0], m_skybox.materials[0], MatrixTranslate(pos.x, pos.y, pos.z));
     rlEnableBackfaceCulling();  // Restore culling
 
+    Vector3 sunPos = Vector3{0, -250, 0};
+    Vector3 moonPos = Vector3{0, -250, 0};
+    DrawMesh(m_sun.meshes[0], m_sun.materials[0], 
+        MatrixMultiply(MatrixTranslate(sunPos.x, sunPos.y, sunPos.z), MatrixMultiply(MatrixRotateX(-m_time * 2 * M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
+    DrawMesh(m_moon.meshes[0], m_moon.materials[0], 
+        MatrixMultiply(MatrixTranslate(moonPos.x, moonPos.y, moonPos.z), MatrixMultiply(MatrixRotateX(-m_time * 2 * M_PI + M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
 }
 
 void World::updatePlayer(double dt)

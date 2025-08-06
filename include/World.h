@@ -37,7 +37,6 @@ private:
     static const int TIMELOC = 0;
     const siv::PerlinNoise::seed_type m_seed;
     const siv::PerlinNoise m_perlinNoise;
-    float m_renderDistance = 4;
 
     std::unordered_map<Vector2, std::unique_ptr<BlockMesh>, Utils::Vector2Hash, Utils::Vector2Equal> m_chunks;
     std::unordered_map<Vector2, std::vector<BlockInstance>, Utils::Vector2Hash, Utils::Vector2Equal> m_futureBlocks;
@@ -47,7 +46,11 @@ private:
     std::thread m_chunkLoader;
 
     Player m_player;
+    float m_renderDistance = 4;
     Model m_skybox;
+    Model m_sun;
+    Model m_moon;
+    float m_time;
 
     static std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> genCirclePoints(float radius);
     static std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> genSquarePoints(float radius);

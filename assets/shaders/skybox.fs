@@ -24,8 +24,10 @@ float remapAndClamp(float value, float oldMin, float oldMax, float newMin, float
     return clamp(newValue, newMin, newMax);
 }
 
-float sinusoidal(float t) {
-    return (-cos(t * 2 * 3.14159265) + 1) / 2.0;
+float lightCycle(float t) {
+    if (t < 0.5)
+        return smoothstep(0.2, 0.3, t);
+    return 1 - smoothstep(0.7, 0.8, t);
 }
 
 void main()
@@ -40,8 +42,9 @@ void main()
     vec4 topColorNight = vec4(0, 0, 0, 1);
     vec4 bottomColorDay = vec4(185.0/255.0, 212.0/255.0, 255.0/255.0, 1);
     vec4 bottomColorNight = vec4(10.0/255.0, 12.0/255.0, 20.0/255.0, 1);
-    vec4 topColor = mix(topColorNight, topColorDay, sinusoidal(time));
-    vec4 bottomColor = mix(bottomColorNight, bottomColorDay, sinusoidal(time));
+    vec4 topColor = mix(topColorNight, topColorDay, lightCycle(time));
+    vec4 bottomColor = mix(bottomColorNight, bottomColorDay, lightCycle(time));
+    
 
     finalColor = mix(bottomColor, topColor, position.y);
 }
