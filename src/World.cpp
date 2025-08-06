@@ -10,7 +10,8 @@
 
 World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
-    m_skybox = Blocks::SKYBOX.generateModel();
+    m_skybox = Blocks::DIRT.generateModel();
+    m_skybox.materials[0].shader = LoadShader("assets/shaders/skybox.vs", "assets/shaders/skybox.fs");
     for (int i = 0; i < m_skybox.meshes->vertexCount; i++) {
         m_skybox.meshes->vertices[3*i] *= 1000;
         m_skybox.meshes->vertices[3*i+1] *= 1000;
@@ -41,6 +42,10 @@ void World::update(double dt)
 
     playerChunk = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     sortChunks(playerChunk);
+
+    float shaderTime = GetTime() / 100.0f;
+    SetShaderValue(TextureLoader::s_material.shader, TIMELOC, &shaderTime, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(m_skybox.materials[0].shader, TIMELOC, &shaderTime, SHADER_UNIFORM_FLOAT);
 }
 
 void World::load(Texture& tex)
@@ -76,12 +81,13 @@ void World::drawChunks()
     m_chunkLock.lock();
     int chunksDrawn = 0;
     // Drawing non-transparent blocks for each chunk
+    bool updateTranslucentMeshes = Utils::floorVector(m_player.getLocation()) != lastPlayerLoc;
     for (const auto& chunkRef: m_sortedChunks) {
         BlockMesh& chunk = chunkRef.get();
         // chunk.lock();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
-        if (Utils::floorVector(m_player.getLocation()) != lastPlayerLoc && chunk.isValid())
+        if (updateTranslucentMeshes && chunk.isValid())
             chunk.updateTransparentMeshes(m_player.getLocation());
 
         if (chunk.isVisible(m_player) && chunk.isValid()) {

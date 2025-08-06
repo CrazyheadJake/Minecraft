@@ -34,6 +34,7 @@ public:
     
 
 private:
+    static const int TIMELOC = 0;
     const siv::PerlinNoise::seed_type m_seed;
     const siv::PerlinNoise m_perlinNoise;
     float m_renderDistance = 4;

@@ -376,7 +376,7 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
                     setBlock(x, y, z, Blocks::STONE);
             }
             // Tree generation
-            int s = (x + (int)m_chunkOffset.x) ^ 1402978341 + (z + (int)m_chunkOffset.z) * 1243 + seed;
+            size_t s = Utils::hashVector(Vector2 {x + m_chunkOffset.x, z + m_chunkOffset.z}, seed);
             srand(s);
             double treeValue = rand() / (double)RAND_MAX;
             if (treeValue < 0.02 && topHeight >= SEALEVEL) {

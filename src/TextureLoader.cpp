@@ -11,7 +11,6 @@ Material TextureLoader::s_material;
 const fs::path TextureLoader::BLOCKTEXTURES_PATH = "assets/textures/blocks/";
 const fs::path TextureLoader::BLOCKMODELS_PATH = "assets/models/blocks/";
 const fs::path TextureLoader::TEXTURES_DIR = "assets/textures/";
-Material TextureLoader::s_skybox;
 const Texture* TextureLoader::s_texture;
 int TextureLoader::s_numTextures;
 std::unordered_map<BlockFace, Vector2> TextureLoader::s_textureLocations;
@@ -35,12 +34,6 @@ void TextureLoader::loadTextures()
     createMap(files);
     s_texture = &s_material.maps[0].texture;
     s_material.shader = LoadShader("assets/shaders/basic.vs", "assets/shaders/basic.fs");
-    Image skyboxImg = GenImageGradientLinear(64, 64, 1, SKYBLUE, PURPLE);
-    ExportImage(skyboxImg, "skybox.png");
-    // Texture skyboxTex = LoadTextureFromImage(skyboxImg);
-    // s_skybox = LoadMaterialDefault();
-    // SetMaterialTexture(&s_skybox, MATERIAL_MAP_DIFFUSE, skyboxTex);
-    // UnloadImage(skyboxImg);
     std::cout << "Size: " << files.size() << std::endl;
 }
 
@@ -147,7 +140,6 @@ void TextureLoader::setFace(Block block, Direction dir, const std::string& field
 void TextureLoader::unloadTextures()
 {
     UnloadMaterial(s_material);
-    UnloadMaterial(s_skybox);
 }
 
 Vector2 TextureLoader::getTexCoord(Block block, Direction d, Vector2 corner)

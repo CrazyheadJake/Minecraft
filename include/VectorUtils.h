@@ -35,5 +35,7 @@ namespace Utils {
     Vector3 floorVector(const Vector3& v, int precision = 1);
     Vector2 roundVector(const Vector2& v, int precision = 1);
     Vector3 roundVector(const Vector3& v, int precision = 1);
+    size_t hashVector(const Vector2& v, size_t seed = 0);
+    size_t hashVector(const Vector3& v, size_t seed = 0);
 
 };
