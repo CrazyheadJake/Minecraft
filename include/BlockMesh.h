@@ -51,6 +51,7 @@ private:
         std::vector<unsigned short> indices;
         std::vector<Vector2> texcoords;
         std::vector<Vector3> normals;
+        std::vector<uint8_t> lightLevels;
         bool translucent;
         Vector3 location;
         Block block;

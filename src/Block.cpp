@@ -44,7 +44,8 @@ Model Block::generateModel()
     model.meshMaterial[0] = 0;
     model.materialCount = 1;
     model.materials = (Material*)malloc(model.materialCount * sizeof(Material));
-    model.materials[0] = TextureLoader::s_material;
+    model.materials[0] = LoadMaterialDefault();
+    model.materials[0].maps[0].texture = TextureLoader::s_material.maps[0].texture;
     return model;
 }
 
@@ -60,6 +61,7 @@ Mesh Block::generateMesh()
     float* verticesPtr = (float*)malloc(blockVertices.size() * 3 * sizeof(float));
     float* texcoordsPtr = (float*)malloc(blockTexcoords.size() * 2 * sizeof(float));
     float* normalsPtr = (float*)malloc(blockNormals.size() * 3 * sizeof(float));
+    unsigned char* lightPtr = (unsigned char*)malloc(blockVertices.size() * 4 * sizeof(unsigned char));
 
     mesh.vertexCount = blockVertices.size();
     mesh.triangleCount = blockIndices.size() / 3;
@@ -67,10 +69,12 @@ Mesh Block::generateMesh()
     mesh.texcoords = texcoordsPtr;
     mesh.normals = normalsPtr;
     mesh.indices = indicesPtr;
+    mesh.colors = lightPtr;
 
     memcpy(mesh.vertices, blockVertices.data(), blockVertices.size() * 3 * sizeof(float));
     memcpy(mesh.normals, blockNormals.data(), blockNormals.size() * 3 * sizeof(float));
     memcpy(mesh.indices, blockIndices.data(), blockIndices.size() * sizeof(unsigned short));
+    memset(mesh.colors, 255, blockVertices.size() * 4 * sizeof(unsigned char));
 
     for (int vert = 0; vert < blockVertices.size(); vert++) {
         Direction d = Dir::getDirection(blockNormals[vert]);
