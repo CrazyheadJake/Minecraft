@@ -53,7 +53,7 @@ void main()
     vec3 dayColor = vec3(1, 1, 1);
     vec3 lightColor = mix(nightColor, dayColor, lightCycle(time));
 
-    vec3 mappedColor = remapAndClamp(lightColor, vec3(0.0), vec3(1.0), vec3(lightMin), vec3(lightMin) + vec3(lightIntensity) * fragColor.xyz);
+    vec3 mappedColor = remapAndClamp(lightColor, vec3(0.0), vec3(1.0), vec3(lightMin), vec3(lightMin) + vec3(lightIntensity) * fragColor.xyz * fragColor.xyz);
     texelColor.xyz = texelColor.xyz * mappedColor;
     finalColor = texelColor;
 }

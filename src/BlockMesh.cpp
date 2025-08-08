@@ -14,6 +14,7 @@
 #include "rlgl.h"
 #include "Structure.h"
 #include <queue>
+#include <list>
 
 BlockMesh::BlockMesh(World &world, const siv::PerlinNoise::seed_type seed, Vector3 offset) : m_chunkOffset(offset), m_world(world)
 {
@@ -448,7 +449,7 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
 
 void BlockMesh::generateLightData()
 {
-    std::queue<BlockInstance> blocks;
+    std::queue<BlockInstance, std::list<BlockInstance>> blocks;
     for (int x = 0; x < LENGTH; x++) {
         for (int z = 0; z < LENGTH; z++) {
             for (int y = HEIGHT - 1; y >= 0; y--) {
