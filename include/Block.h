@@ -41,6 +41,18 @@ private:
     static std::vector<int> s_priorities;
 };
 
+struct BlockData {
+    BlockData() = default;
+    BlockData(Block block, uint8_t light = 0): block(block), lightLevel(light) { }
+    Block block;
+    uint8_t lightLevel;
+};
+
+struct BlockInstance {
+    BlockData blockData;
+    Vector3 location;
+};
+
 namespace Blocks {
     inline std::unordered_map<std::string, Block> s_stringToBlock;
 

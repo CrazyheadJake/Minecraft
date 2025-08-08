@@ -30,7 +30,7 @@ public:
     Vector2 getChunkLoc() const;
     void setBlock(Vector3 localCoord, Block block, bool updateMesh = false);
     void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
-    Block getBlockLocal(Vector3 localCoord) const;
+    BlockData getBlockLocal(Vector3 localCoord) const;
     bool isLocalCoord(Vector3 localCoord) const;
     void tryGenerateMeshData();
     void tryGenerateMeshes();
@@ -46,7 +46,7 @@ public:
     void unlock();
 
 private:
-    struct BlockData {
+    struct BlockGenerationData {
         std::vector<Vector3> vertices;
         std::vector<unsigned short> indices;
         std::vector<Vector2> texcoords;
@@ -70,10 +70,10 @@ private:
     bool m_regenerate = false;
     State m_state = State::UNINITIALIZED;
 
-    std::array<Block, LENGTH*LENGTH*HEIGHT> m_blocks;
-    std::unordered_map<int, BlockData> m_meshData;
+    std::array<BlockData, LENGTH*LENGTH*HEIGHT> m_blocks;
+    std::unordered_map<int, BlockGenerationData> m_meshData;
     int m_verticesCount = 0;
-    std::vector<const BlockData*> m_translucentBlocks;
+    std::vector<const BlockGenerationData*> m_translucentBlocks;
     int m_translucentVerticesCount = 0;
     int m_translucentMeshCount = 0;
     Model m_model = {0};
@@ -88,6 +88,7 @@ private:
     void clearModel();
     void generateModel();
     void generateWorld(const siv::PerlinNoise::seed_type seed);
+    void generateLightData();
     void uploadMeshes();
     int getIndex(Vector3 coord);
     Vector3 getCorner(int i) const;

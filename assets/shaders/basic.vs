@@ -17,7 +17,7 @@ uniform mat4 mvp; // Model-View-Projection matrix
 void main()
 {
     fragTexCoord = vertexTexCoord;
-    fragColor = vec4(1, 1, 1, 0);
+    fragColor = vertexColor * 16;
     gl_Position = mvp * vec4(vertexPosition, 1.0); // Transform vertex position
     fragNormal = vertexNormal;
 }

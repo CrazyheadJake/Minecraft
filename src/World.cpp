@@ -6,7 +6,6 @@
 #include <iostream>
 #include <thread>
 #include "TextureLoader.h"
-#include "BlockInstance.h"
 
 World::World(int seed): m_seed(seed), m_perlinNoise(m_seed), m_chunkLoader(&World::runChunkLoader, this), m_player(getSpawn(), 90.0f, CAMERA_PERSPECTIVE)
 {
@@ -236,7 +235,7 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
                 lastStep = 2; // Z step
             }
         }
-        if (getBlockGlobal(start) != Blocks::AIR) {
+        if (getBlockGlobal(start).block != Blocks::AIR) {
             // We hit a block, return the collision
             RayCollision collision;
             collision.hit = true;
@@ -257,7 +256,7 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
     return {false, 0, {0, 0, 0}, {0, 0, 0}};
 }
 
-Block World::getBlockGlobal(Vector3 globalCoord) const
+BlockData World::getBlockGlobal(Vector3 globalCoord) const
 {
     if (globalCoord.y < 0 || globalCoord.y >= BlockMesh::HEIGHT)
         return Blocks::AIR;  // Below world, will force bottom faces to render

@@ -1,6 +1,5 @@
 #pragma once
 #include <vector>
-#include "BlockInstance.h"
 #include "Block.h"
 
 class Structure

@@ -25,6 +25,7 @@ public:
     static const int MESH_BUFFER_VERTEX = 0;
     static const int MESH_BUFFER_TEXCOORD = 1;
     static const int MESH_BUFFER_NORMAL = 2;
+    static const int MESH_BUFFER_LIGHT = 3;
 
     static Material s_material;
     TextureLoader() = delete;

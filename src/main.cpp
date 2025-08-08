@@ -25,7 +25,7 @@ void printMatrix(Matrix matrix) {
 
 void drawFPS(Vector2 loc, const char* text, float fps) {
     std::string fpsText = text + std::to_string((int)round(fps));
-    DrawText(fpsText.c_str(), loc.x, loc.y, 40, BLACK);
+    DrawText(fpsText.c_str(), loc.x, loc.y, 40, DARKGRAY);
 }
 
 bool AltF4Pressed() {

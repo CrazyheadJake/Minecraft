@@ -10,7 +10,6 @@
 #include "Block.h"
 #include <unordered_map>
 #include <atomic>
-#include "BlockInstance.h"
 
 class BlockMesh;
 
@@ -26,7 +25,7 @@ public:
     const Player& getPlayer() const;
     Vector3 getSpawn() const;
     RayCollision rayCollision(const Ray &ray, float distance) const;
-    Block getBlockGlobal(Vector3 globalCoord) const;
+    BlockData getBlockGlobal(Vector3 globalCoord) const;
     void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
     void updateBlockGlobal(Vector3 globalCoord);
     void regenerateChunk(Vector2 chunkLoc);
