@@ -28,7 +28,9 @@ public:
     BlockData getBlockGlobal(Vector3 globalCoord) const;
     void setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh = false);
     void updateBlockGlobal(Vector3 globalCoord);
+    void updateLightGlobal(Vector3 globalCoord);
     void regenerateChunk(Vector2 chunkLoc);
+    void relightChunk(Vector2 chunkLoc);
     std::vector<BlockInstance> getFutureBlocks(Vector2 chunkLoc);
     
 
@@ -45,7 +47,7 @@ private:
     std::thread m_chunkLoader;
 
     Player m_player;
-    float m_renderDistance = 4;
+    float m_renderDistance = 1;
     Model m_skybox;
     Model m_sun;
     Model m_moon;
@@ -55,4 +57,5 @@ private:
     static std::unordered_set<Vector2, Utils::Vector2Hash, Utils::Vector2Equal> genSquarePoints(float radius);
     void runChunkLoader();
     void sortChunks(Vector2 playerChunkLoc);
+    inline float getDayTime();
 };

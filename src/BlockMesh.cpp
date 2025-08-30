@@ -16,6 +16,8 @@
 #include <queue>
 #include <list>
 
+BlockData BlockMesh::UNKNOWN_BLOCK = BlockData(Blocks::UNKNOWN);
+
 BlockMesh::BlockMesh(World &world, const siv::PerlinNoise::seed_type seed, Vector3 offset) : m_chunkOffset(offset), m_world(world)
 {
     generateWorld(seed);
@@ -121,9 +123,15 @@ void BlockMesh::generateMeshesFromData()
             memcpy(meshes[i].texcoords + k * 2, blockData->texcoords.data(), blockData->texcoords.size() * sizeof(Vector2));
             memcpy(meshes[i].normals + k * 3, blockData->normals.data(), blockData->normals.size() * sizeof(Vector3));
             for (int index = 0; index < blockData->vertices.size(); index++) {
-                meshes[i].colors[4 * k + 4 * index] = blockData->lightLevels[index];
-                meshes[i].colors[4 * k + 4 * index + 1] = blockData->lightLevels[index];
-                meshes[i].colors[4 * k + 4 * index + 2] = blockData->lightLevels[index];
+                BlockData block;
+                if (isLocalCoord(blockData->location - m_chunkOffset + blockData->normals[index]))
+                    block = getBlockLocal(blockData->location - m_chunkOffset + blockData->normals[index]);
+                else
+                    block = m_world.getBlockGlobal(blockData->location + blockData->normals[index]);
+                // int lightLevel = block.lightLevel;
+                meshes[i].colors[4 * k + 4 * index] = block.lightLevel;
+                meshes[i].colors[4 * k + 4 * index + 1] = block.lightLevel;
+                meshes[i].colors[4 * k + 4 * index + 2] = block.lightLevel;
             }
             for (int index = 0; index < blockData->indices.size(); index++) {
                 meshes[i].indices[index + (int)(k * 1.5f)] = blockData->indices[index] + k;
@@ -228,10 +236,14 @@ void BlockMesh::generateTransparentMeshes(Vector3 location, Mesh* meshes, int me
                 memcpy(meshes[i].texcoords + (k * 2) + (8 * index), &blockData->texcoords.data()[4 * key], 4 * sizeof(Vector2));
                 memcpy(meshes[i].normals + (k * 3) + (12 * index), &blockData->normals.data()[4 * key], 4 * sizeof(Vector3));
 
-                memset(meshes[i].colors + (k * 4) + (16 * index), blockData->lightLevels[4 * key], 4 * sizeof(unsigned char));
-                memset(meshes[i].colors + (k * 4) + (16 * index + 4), blockData->lightLevels[4 * key + 1], 4 * sizeof(unsigned char));
-                memset(meshes[i].colors + (k * 4) + (16 * index + 8), blockData->lightLevels[4 * key + 2], 4 * sizeof(unsigned char));
-                memset(meshes[i].colors + (k * 4) + (16 * index + 12), blockData->lightLevels[4 * key + 3], 4 * sizeof(unsigned char));
+                BlockData block;
+                for (int face = 0; face < 4; face++) {
+                    if (isLocalCoord(blockData->location - m_chunkOffset + blockData->normals[4 * key + face]))
+                        block = getBlockLocal(blockData->location - m_chunkOffset + blockData->normals[4 * key + face]);
+                    else
+                        block = m_world.getBlockGlobal(blockData->location + blockData->normals[4 * key + face]);
+                    memset(meshes[i].colors + (k * 4) + (16 * index + 4 * face), block.lightLevel, 4 * sizeof(unsigned char));
+                }
             }
 
             if (newMesh) {
@@ -356,7 +368,6 @@ void BlockMesh::genBlockData(Vector3 localCoord)
             Direction d = Dir::getDirection(blockNormals[vert]);
             blockData->texcoords.push_back(TextureLoader::getTexCoord(currentBlock, d, blockTexcoords[vert]));
             blockData->normals.push_back(blockNormals[vert]);
-            blockData->lightLevels.push_back(neighborBlockData.lightLevel);
         }
         // Keep track of how many vertices we have
         if (currentBlock.getTranslucent())
@@ -374,6 +385,7 @@ void BlockMesh::requestRegenerate()
 void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
 {
     siv::PerlinNoise perlin(seed);
+    std::vector<Vector2> chunksToRelight;
 
     for (int x  = 0; x < LENGTH; x++) {
         for (int z = 0; z < LENGTH; z++) {    
@@ -424,6 +436,11 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
                         // NOTE - because updateMesh is false, there will be a couple extra (nonvisible) faces in the mesh
                         // When it is set to true, we get a bug where some chunks won't load
                         m_world.setBlockGlobal(tree[i].location, tree[i].blockData.block, false);
+
+                        // Keep track of which neighboring chunks need to reload their lighting values
+                        Vector2 neighborChunkLoc = Vector2(floorf(tree[i].location.x / LENGTH), floorf(tree[i].location.z / LENGTH));
+                        if (!std::ranges::contains(chunksToRelight, neighborChunkLoc))
+                            chunksToRelight.push_back(neighborChunkLoc);
                     }
                 }
             }
@@ -442,6 +459,10 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
         setBlock(block.location - m_chunkOffset, block.blockData.block);
     }
 
+    for (Vector2 chunk : chunksToRelight) {
+        m_world.relightChunk(chunk);
+    }
+
     generateLightData();
 
     m_state = State::WORLD_GENERATED;
@@ -450,18 +471,27 @@ void BlockMesh::generateWorld(const siv::PerlinNoise::seed_type seed)
 void BlockMesh::generateLightData()
 {
     std::queue<BlockInstance, std::list<BlockInstance>> blocks;
-    for (int x = 0; x < LENGTH; x++) {
-        for (int z = 0; z < LENGTH; z++) {
+    for (int x = -1; x < LENGTH + 1; x++) {
+        for (int z = -1; z < LENGTH + 1; z++) {
+            bool setToZero = false;
             for (int y = HEIGHT - 1; y >= 0; y--) {
                 if (y == 0) {
                     continue;
                 }
+                if (setToZero) {
+                    m_blocks[z * LENGTH + y * LENGTH * LENGTH + x].lightLevel = 0;
+                    continue;
+                }
+                if (!isLocalCoord(Vector3(x, y, z))) {
+                    blocks.push(BlockInstance(m_world.getBlockGlobal(Vector3(x, y, z)), Vector3(x, y, z)));
+                    continue;
+                }
                 m_blocks[z * LENGTH + y * LENGTH * LENGTH + x].lightLevel = 15;
-                blocks.push(BlockInstance(getBlockLocal({(float)x, (float)y, (float)z}), Vector3(x, y, z)));
+                blocks.push(BlockInstance(getBlockLocal(Vector3(x, y, z)), Vector3(x, y, z)));
                 
-                BlockData blockData = getBlockLocal({(float)x, (float)y - 1, (float)z});
+                BlockData blockData = getBlockLocal(Vector3(x, y - 1, z));
                 if (blockData.block != Blocks::AIR && blockData.block != Blocks::GRASS) {
-                    break;
+                    setToZero = true;
                 }
             }
         }
@@ -478,19 +508,87 @@ void BlockMesh::generateLightData()
     while (!blocks.empty()) {
         BlockInstance block = blocks.front();
         blocks.pop();
+        // updateLightData(block.location);
         for (Vector3 neighbor : neighbors) {
-            BlockData blockData = getBlockLocal(block.location + neighbor);
-            if (blockData.block == Blocks::AIR || blockData.block.getTransparent() || blockData.block.getTranslucent()) {
-                BlockData& currentBlockData = m_blocks[(int)(block.location + neighbor).x + (int)(block.location + neighbor).y * LENGTH * LENGTH + (int)(block.location + neighbor).z * LENGTH];
-                if (currentBlockData.lightLevel >= block.blockData.lightLevel - 1)
+            // BlockData b = m_world.getBlockGlobal(block.location + neighbor + m_chunkOffset);
+            if (!isLocalCoord(block.location + neighbor))
+                continue;
+            BlockData& neighborBlock = getBlockLocal(block.location + neighbor);
+            if (neighborBlock.block == Blocks::AIR || neighborBlock.block.getTransparent() || neighborBlock.block.getTranslucent()) {
+                // BlockData& currentBlockData = m_blocks[(int)(block.location + neighbor).x + (int)(block.location + neighbor).y * LENGTH * LENGTH + (int)(block.location + neighbor).z * LENGTH];
+                if (neighborBlock.lightLevel >= block.blockData.lightLevel - 1)
                     continue;
-                currentBlockData.lightLevel = block.blockData.lightLevel - 1;
-                blockData.lightLevel = block.blockData.lightLevel - 1;
-                if (blockData.lightLevel > 1)
-                    blocks.push(BlockInstance(blockData, block.location + neighbor));
+                neighborBlock.lightLevel = block.blockData.lightLevel - 1;
+                if (neighborBlock.lightLevel > 1)
+                    blocks.push(BlockInstance(neighborBlock, block.location + neighbor));
             }
         }
     }
+}
+
+void BlockMesh::updateLightData(Vector3 localCoord)
+{
+    generateLightData();
+    // std::array<Vector3, 6> neighbors = {
+    //     Vector3{1, 0, 0},
+    //     Vector3{-1, 0, 0},
+    //     Vector3{0, 0, 1},
+    //     Vector3{0, 0, -1},
+    //     Vector3{0, 1, 0},
+    //     Vector3{0, -1, 0}
+    // };
+    // BlockData& blockData = getBlockLocal(localCoord);
+    // if (blockData.lightLevel > 15) {
+    //     printf("Uh oh");
+    // }
+    // int lastLightLevel = blockData.lightLevel;
+    // // Block has just been placed
+    // if (blockData.block != Blocks::AIR && !blockData.block.getTranslucent() && !blockData.block.getTransparent()) {
+    //     setLightLevel(localCoord, 0);
+    // }
+    // // Block has just been broken
+    // else {
+    //     // Top block is always max light level
+    //     if (isTopBlock(localCoord)) {
+    //         setLightLevel(localCoord, 15);
+    //         // generateMesh
+    //     }
+    //     // Not top block, calculate light level from neighbors
+    //     else {
+    //         int maxNeighborLight = 1;
+    //         for (Vector3 neighbor : neighbors) {
+    //             BlockData neighborBlockData;
+    //             if (isLocalCoord(localCoord + neighbor)) {
+    //                 neighborBlockData = getBlockLocal(localCoord + neighbor);
+    //             }
+    //             else {
+    //                 neighborBlockData = m_world.getBlockGlobal(localCoord + neighbor + m_chunkOffset);
+    //             }
+    //             if (neighborBlockData.block == Blocks::UNKNOWN)
+    //                 neighborBlockData.lightLevel = 0;
+    //             if (maxNeighborLight < neighborBlockData.lightLevel) {
+    //                 maxNeighborLight = neighborBlockData.lightLevel;
+    //             }
+    //         }
+    //         setLightLevel(localCoord, maxNeighborLight - 1);
+    //     }
+    // }
+    // If anything changed, force all surrounding blocks to update
+    // if (blockData.lightLevel != lastLightLevel) {
+    //     for (Vector3 neighbor : neighbors) {
+    //         if (isLocalCoord(localCoord + neighbor)) {
+    //             const BlockData& neighborBlockData = getBlockLocal(localCoord + neighbor);
+    //             updateLightData(localCoord + neighbor);
+    //         }
+    //         else {
+    //             const BlockData neighborBlockData = m_world.getBlockGlobal(localCoord + neighbor + m_chunkOffset);
+    //             m_world.updateLightGlobal(localCoord + neighbor + m_chunkOffset);
+    //         }
+    //     }
+    // }
+    // if (m_state == State::MESH_UPLOADED || m_state == State::MESHDATA_GENERATED)
+    //     updateBlockData(localCoord);
+    m_state = State::MESHDATA_GENERATED;
 }
 
 bool BlockMesh::isValid() const
@@ -564,7 +662,7 @@ void BlockMesh::setBlock(Vector3 loc, Block block, bool updateMesh)
 
 void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
 {
-    m_blocks[z * LENGTH + y * LENGTH * LENGTH + x] = BlockData(block);
+    m_blocks[z * LENGTH + y * LENGTH * LENGTH + x].block = block;
     if (updateMesh) {
         lock();
         updateBlockData({(float)x, (float)y, (float)z});
@@ -572,12 +670,12 @@ void BlockMesh::setBlock(int x, int y, int z, Block block, bool updateMesh)
     }
 }
 
-BlockData BlockMesh::getBlockLocal(Vector3 localCoord) const
+BlockData& BlockMesh::getBlockLocal(Vector3 localCoord)
 {
     if (localCoord.x < 0 || localCoord.x >= LENGTH ||
         localCoord.y < 0 || localCoord.y >= HEIGHT ||
         localCoord.z < 0 || localCoord.z >= LENGTH) {
-        return Blocks::UNKNOWN;
+        return UNKNOWN_BLOCK;
     }
     return m_blocks[(int)(localCoord.x) + (int)(localCoord.y) * LENGTH * LENGTH + (int)(localCoord.z) * LENGTH];
 }
@@ -615,6 +713,17 @@ Vector3 BlockMesh::getCorner(int i) const
         case 7: return m_boundingBox.max;
     }
     return {0, 0, 0}; // This line is unreachable, but it prevents a warning about not returning a value
+}
+
+bool BlockMesh::isTopBlock(Vector3 localCoord)
+{
+    RayCollision collision = m_world.rayCollision(Ray(localCoord + m_chunkOffset, {0, 1, 0}), HEIGHT - localCoord.y);
+    return !collision.hit;
+}
+
+void BlockMesh::setLightLevel(Vector3 localCoord, int lightLevel)
+{
+    getBlockLocal(localCoord).lightLevel = lightLevel;
 }
 
 void BlockMesh::generateModel()

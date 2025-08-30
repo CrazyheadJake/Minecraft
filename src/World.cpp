@@ -60,9 +60,10 @@ void World::update(double dt)
     playerChunk = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
     sortChunks(playerChunk);
 
-    m_time = GetTime() / 100.0f;
-    SetShaderValue(TextureLoader::s_material.shader, TIMELOC, &m_time, SHADER_UNIFORM_FLOAT);
-    SetShaderValue(m_skybox.materials[0].shader, TIMELOC, &m_time, SHADER_UNIFORM_FLOAT);
+    m_time = GetTime() / 1000.0f;
+    float time = getDayTime();
+    SetShaderValue(TextureLoader::s_material.shader, TIMELOC, &time, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(m_skybox.materials[0].shader, TIMELOC, &time, SHADER_UNIFORM_FLOAT);
 }
 
 void World::load(Texture& tex)
@@ -82,9 +83,11 @@ void World::load(Texture& tex)
         loading = (World::genSquarePoints(m_renderDistance).size() != m_chunks.size());
         for (const auto& [chunkLoc, chunk]: m_chunks) {
             if (!chunk->isValid()) {
+                m_chunkLock.unlock();
                 chunk->tryGenerateMeshes();
                 chunk->tryUploadMeshes();
                 loading = true;
+                m_chunkLock.lock();
             }
         }
         m_chunkLock.unlock();
@@ -95,11 +98,14 @@ void World::load(Texture& tex)
 void World::drawChunks()
 {
     static Vector3 lastPlayerLoc;
+    std::vector<std::reference_wrapper<BlockMesh>> chunks_to_draw;
     m_chunkLock.lock();
+    chunks_to_draw = m_sortedChunks;
+    m_chunkLock.unlock();
     int chunksDrawn = 0;
     // Drawing non-transparent blocks for each chunk
     bool updateTranslucentMeshes = Utils::floorVector(m_player.getLocation()) != lastPlayerLoc;
-    for (const auto& chunkRef: m_sortedChunks) {
+    for (const auto& chunkRef: chunks_to_draw) {
         BlockMesh& chunk = chunkRef.get();
         chunk.tryGenerateMeshes();
         chunk.tryUploadMeshes();
@@ -114,7 +120,6 @@ void World::drawChunks()
         }
     }
 
-    m_chunkLock.unlock();
     lastPlayerLoc = Utils::floorVector(m_player.getLocation());
 }
 
@@ -128,10 +133,11 @@ void World::drawSkybox()
 
     Vector3 sunPos = Vector3{0, -250, 0};
     Vector3 moonPos = Vector3{0, -250, 0};
+    printf("Time: %f\n", m_time - (int)m_time);
     DrawMesh(m_sun.meshes[0], m_sun.materials[0], 
-        MatrixMultiply(MatrixTranslate(sunPos.x, sunPos.y, sunPos.z), MatrixMultiply(MatrixRotateX(-m_time * 2 * M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
+        MatrixMultiply(MatrixTranslate(sunPos.x, sunPos.y, sunPos.z), MatrixMultiply(MatrixRotateX(-getDayTime() * 2 * M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
     DrawMesh(m_moon.meshes[0], m_moon.materials[0], 
-        MatrixMultiply(MatrixTranslate(moonPos.x, moonPos.y, moonPos.z), MatrixMultiply(MatrixRotateX(-m_time * 2 * M_PI + M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
+        MatrixMultiply(MatrixTranslate(moonPos.x, moonPos.y, moonPos.z), MatrixMultiply(MatrixRotateX(-getDayTime() * 2 * M_PI + M_PI), MatrixTranslate(pos.x, pos.y, pos.z))));
 }
 
 void World::updatePlayer(double dt)
@@ -208,9 +214,12 @@ RayCollision World::rayCollision(const Ray &ray, float distance) const
     float tMaxX = (stepX > 0) ? (floorf(start.x + 1) - start.x) * tDeltaX : (start.x - floorf(start.x)) * tDeltaX;
     float tMaxY = (stepY > 0) ? (floorf(start.y + 1) - start.y) * tDeltaY : (start.y - floorf(start.y)) * tDeltaY;
     float tMaxZ = (stepZ > 0) ? (floorf(start.z + 1) - start.z) * tDeltaZ : (start.z - floorf(start.z)) * tDeltaZ;
+    if (tDeltaX == INFINITY) tMaxX = INFINITY;
+    if (tDeltaY == INFINITY) tMaxY = INFINITY;
+    if (tDeltaZ == INFINITY) tMaxZ = INFINITY;
     int lastStep = 0;
 
-    while (Vector3Distance(start, ray.position) <= distance) {
+    while (Vector3DistanceSqr(start, ray.position) <= distance * distance) {
         if(tMaxX < tMaxY) {
             if(tMaxX < tMaxZ) {
                 start.x += stepX;
@@ -309,6 +318,9 @@ void World::setBlockGlobal(Vector3 globalCoord, Block block, bool updateMesh)
         updateBlockGlobal(globalCoord + Vector3{0.0f, -1.0f, 0.0f});
         updateBlockGlobal(globalCoord + Vector3{0.0f, 0.0f, 1.0f});
         updateBlockGlobal(globalCoord + Vector3{0.0f, 0.0f, -1.0f});
+        
+        // Light update the current block
+        updateLightGlobal(globalCoord);
     }
 }
 
@@ -331,6 +343,25 @@ void World::updateBlockGlobal(Vector3 globalCoord)
     chunk->unlock();
 }
 
+void World::updateLightGlobal(Vector3 globalCoord)
+{
+    if (globalCoord.y < 0 || globalCoord.y >= BlockMesh::HEIGHT)
+        return;  // Below/above world
+    Vector2 chunkLoc = Utils::floorVector(Vector2{globalCoord.x, globalCoord.z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return; // Chunk not found
+    }
+    const std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    Vector3 localCoord = globalCoord - chunk->getGlobalCoord(0);
+    // chunk->lock();
+    chunk->updateLightData(localCoord);
+    // chunk->unlock();
+}
+
 void World::regenerateChunk(Vector2 chunkLoc)
 {
     m_chunkLock.lock();
@@ -344,6 +375,21 @@ void World::regenerateChunk(Vector2 chunkLoc)
     std::unique_ptr<BlockMesh>& chunk = it->second;
     m_chunkLock.unlock();
     chunk->requestRegenerate();
+}
+
+void World::relightChunk(Vector2 chunkLoc)
+{
+    m_chunkLock.lock();
+    auto it = m_chunks.find(chunkLoc);
+    // Chunk doesn't exist
+    if (it == m_chunks.end()) {
+        m_chunkLock.unlock();
+        return;
+    }
+    // Reload mesh for existing chunk
+    std::unique_ptr<BlockMesh>& chunk = it->second;
+    m_chunkLock.unlock();
+    chunk->generateLightData();
 }
 
 std::vector<BlockInstance> World::getFutureBlocks(Vector2 chunkLoc)
@@ -394,7 +440,7 @@ void World::runChunkLoader()
     while (m_running) {
         chunkLocs = World::genSquarePoints(m_renderDistance);
         Vector2 temp = Utils::floorVector(Vector2{m_player.getLocation().x, m_player.getLocation().z}, BlockMesh::LENGTH) / BlockMesh::LENGTH;
-        if (playerChunk.x != INFINITY && Vector2Equals(temp, playerChunk)) {
+        if (playerChunk.x != INFINITY && Vector2Equals(temp, playerChunk) && chunkLocs.size() == m_chunks.size()) {
             // No change in player position, skip chunk loading
             continue;
         }
@@ -462,4 +508,9 @@ void World::sortChunks(Vector2 playerChunkLoc)
             return Vector2LengthSqr(a.get().getChunkLoc() - playerChunkLoc) > Vector2LengthSqr(b.get().getChunkLoc() - playerChunkLoc);
         });
         m_chunkLock.unlock();
+}
+
+float World::getDayTime()
+{
+    return (m_time - (int)m_time);
 }

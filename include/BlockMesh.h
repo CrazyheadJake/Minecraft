@@ -30,7 +30,7 @@ public:
     Vector2 getChunkLoc() const;
     void setBlock(Vector3 localCoord, Block block, bool updateMesh = false);
     void setBlock(int x, int y, int z, Block block, bool updateMesh = false);
-    BlockData getBlockLocal(Vector3 localCoord) const;
+    BlockData& getBlockLocal(Vector3 localCoord);
     bool isLocalCoord(Vector3 localCoord) const;
     void tryGenerateMeshData();
     void tryGenerateMeshes();
@@ -42,6 +42,8 @@ public:
     void updateTransparentMeshes(Vector3 location, bool newMesh = false);
     void generateTransparentMeshes(Vector3 location, Mesh* meshes, int meshCount, int transparentMeshCount, bool newMesh);
     bool shouldRegenerate() const;
+    void generateLightData();
+    void updateLightData(Vector3 localCoord);
     void lock();
     void unlock();
 
@@ -51,7 +53,6 @@ private:
         std::vector<unsigned short> indices;
         std::vector<Vector2> texcoords;
         std::vector<Vector3> normals;
-        std::vector<uint8_t> lightLevels;
         bool translucent;
         Vector3 location;
         Block block;
@@ -66,11 +67,13 @@ private:
     static constexpr int SEALEVEL = 64; // Sea level for the world generation
     static constexpr double SCALE = 0.02f; // Scale for the Perlin noise
     static const unsigned short MAX_VERTS = UINT16_MAX;
-    
+    static BlockData UNKNOWN_BLOCK;
+
     bool m_regenerate = false;
     State m_state = State::UNINITIALIZED;
 
-    std::array<BlockData, LENGTH*LENGTH*HEIGHT> m_blocks;
+    std::array<BlockData, LENGTH*LENGTH*HEIGHT> m_blocks = { BlockData(Blocks::UNKNOWN, 0) };
+    std::array<uint8_t, LENGTH*LENGTH> m_topHeights = { 0 };
     std::unordered_map<int, BlockGenerationData> m_meshData;
     int m_verticesCount = 0;
     std::vector<const BlockGenerationData*> m_translucentBlocks;
@@ -88,8 +91,9 @@ private:
     void clearModel();
     void generateModel();
     void generateWorld(const siv::PerlinNoise::seed_type seed);
-    void generateLightData();
     void uploadMeshes();
     int getIndex(Vector3 coord);
     Vector3 getCorner(int i) const;
+    bool isTopBlock(Vector3 localCoord);
+    void setLightLevel(Vector3 localCoord, int lightLevel);
 };

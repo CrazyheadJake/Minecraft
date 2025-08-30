@@ -14,7 +14,7 @@ if (WIN32)
 endif()
 
 project(Minecraft)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Enable AddressSanitizer if supported

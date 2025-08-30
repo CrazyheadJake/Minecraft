@@ -104,7 +104,7 @@ int main() {
     rlSetLineWidth(GetMonitorWidth(GetCurrentMonitor())/1280.0);
     rlEnableSmoothLines();
     SetExitKey(-1);
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     std::filesystem::current_path(ROOT_PATH);
 
     // Main game
